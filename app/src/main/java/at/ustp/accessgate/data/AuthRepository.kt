@@ -2,6 +2,7 @@ package at.ustp.accessgate.data
 
 import at.ustp.accessgate.db.AuthDao
 import at.ustp.accessgate.db.AuthEnrollmentEntity
+import kotlinx.coroutines.flow.Flow
 
 class AuthRepository(private val dao: AuthDao) {
 
@@ -18,4 +19,6 @@ class AuthRepository(private val dao: AuthDao) {
     suspend fun clearTapEnrollment() {
         dao.deleteEnrollment("tap_jingle")
     }
+
+    val enrollments: Flow<List<AuthEnrollmentEntity>> = dao.getAllEnrollments()
 }

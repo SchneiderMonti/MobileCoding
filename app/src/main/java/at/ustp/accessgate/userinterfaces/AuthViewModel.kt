@@ -18,7 +18,7 @@ data class TapAuthUiState(
 class AuthViewModel(
     private val repository: AuthRepository
 ) : ViewModel() {
-
+    val enrollments = repository.enrollments
     private val _tapAuthUiState = MutableStateFlow(TapAuthUiState())
     val tapAuthUiState: StateFlow<TapAuthUiState> = _tapAuthUiState.asStateFlow()
 

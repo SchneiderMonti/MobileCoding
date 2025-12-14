@@ -24,7 +24,9 @@ fun AuthUI() {
     NavHost(navController = navController, startDestination = "methods") {
 
         composable("methods") {
-            MethodsListScreen(
+            AuthListScreen(
+                viewModel = authViewModel,
+                onAddAuthenticationClick = { navController.navigate("tap") }, // TEMP: go to tap enrollment
                 onTapJingleClick = { navController.navigate("tap") }
             )
         }
