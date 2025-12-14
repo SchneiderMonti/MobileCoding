@@ -98,15 +98,18 @@ class AuthViewModel(
 
         val enrolledAvg = enrolled.average()
         val attemptAvg = attempt.average()
-
         if (enrolledAvg == 0.0) return false
 
         val scale = attemptAvg / enrolledAvg
-        val toleranceMs = 120.0
+
+        val minTolMs = 40.0          // never smaller than 40ms
+        val maxTolMs = 140.0         // never larger than 140ms
+        val relTol = 0.18            // 18% tolerance
 
         return enrolled.indices.all { i ->
             val expected = enrolled[i] * scale
-            abs(attempt[i] - expected) <= toleranceMs
+            val tol = (expected * relTol).coerceIn(minTolMs, maxTolMs)
+            kotlin.math.abs(attempt[i] - expected) <= tol
         }
     }
 }
