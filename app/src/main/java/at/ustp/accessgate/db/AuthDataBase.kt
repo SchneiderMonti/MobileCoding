@@ -6,8 +6,8 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [AuthEnrollmentEntity::class],
-    version = 1,
+    entities = [AuthEntryEntity::class],
+    version = 2,
     exportSchema = false
 )
 abstract class AuthDatabase : RoomDatabase() {
@@ -23,7 +23,9 @@ abstract class AuthDatabase : RoomDatabase() {
                     context.applicationContext,
                     AuthDatabase::class.java,
                     "auth_db"
-                ).build()
+                )
+                    .fallbackToDestructiveMigration()
+                    .build()
                 INSTANCE = instance
                 instance
             }

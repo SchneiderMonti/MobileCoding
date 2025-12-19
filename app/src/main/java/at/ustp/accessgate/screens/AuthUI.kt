@@ -1,9 +1,6 @@
 package at.ustp.accessgate.screens
 
-
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.compose.NavHost
@@ -21,13 +18,25 @@ fun AuthUI() {
         factory = AuthViewModelFactory(context)
     )
 
-    NavHost(navController = navController, startDestination = "methods") {
+    NavHost(navController = navController, startDestination = "list") {
 
-        composable("methods") {
+        composable("list") {
             AuthListScreen(
                 viewModel = authViewModel,
-                onAddAuthenticationClick = { navController.navigate("tap") }, // TEMP: go to tap enrollment
-                onTapJingleClick = { navController.navigate("tap") }
+                onAddAuthClick = { navController.navigate("choose_method") },
+                onEntryClick = { entryId ->
+                    // You can add a detail screen later.
+                    // For now, just go to tap screen:
+                    navController.navigate("tap")
+                    // Later you’ll do: navController.navigate("detail/$entryId")
+                }
+            )
+        }
+
+        composable("choose_method") {
+            MethodsListScreen(
+                onTapJingleClick = { navController.navigate("tap") },
+                onBack = { navController.popBackStack() }
             )
         }
 

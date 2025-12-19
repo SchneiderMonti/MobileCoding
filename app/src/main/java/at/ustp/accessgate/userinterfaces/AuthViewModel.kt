@@ -3,96 +3,77 @@ package at.ustp.accessgate.userinterfaces
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import at.ustp.accessgate.data.AuthRepository
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
+import at.ustp.accessgate.db.AuthEntryEntity
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import kotlin.math.abs
 
 data class TapAuthUiState(
-    val isEnrolled: Boolean = false,
-    val lastResult: Boolean? = null,  // null = no attempt yet
+    val lastResult: Boolean? = null,
     val message: String = ""
 )
 
 class AuthViewModel(
     private val repository: AuthRepository
 ) : ViewModel() {
-    val enrollments = repository.enrollments
+
+    // ✅ List screen uses this
+    val entries: Flow<List<AuthEntryEntity>> = repository.entries
+
     private val _tapAuthUiState = MutableStateFlow(TapAuthUiState())
     val tapAuthUiState: StateFlow<TapAuthUiState> = _tapAuthUiState.asStateFlow()
 
-    init {
-        // On startup: check if enrollment exists
-        viewModelScope.launch {
-            val enrolled = repository.loadTapEnrollment() != null
-            _tapAuthUiState.value = _tapAuthUiState.value.copy(
-                isEnrolled = enrolled,
-                message = if (enrolled) "Tap jingle enrolled" else "Not enrolled yet"
-            )
-        }
-    }
-
-    fun enrollTap(intervals: List<Long>) {
+    // --- TEMP helper until you build a proper Detail screen ---
+    // Enroll tap jingle by creating a DB entry with a name.
+    fun createTapJingleEntry(name: String, intervals: List<Long>) {
         viewModelScope.launch {
             if (intervals.isEmpty()) {
-                _tapAuthUiState.value = _tapAuthUiState.value.copy(
-                    message = "Not enough taps (need at least 2 taps)"
-                )
+                _tapAuthUiState.value = TapAuthUiState(message = "Not enough taps (need at least 2 taps)")
                 return@launch
             }
-
-            repository.saveTapEnrollment(intervals)
-
-            _tapAuthUiState.value = _tapAuthUiState.value.copy(
-                isEnrolled = true,
-                lastResult = null,
-                message = "Enrolled tap jingle!"
+            val payload = intervals.joinToString(",")
+            repository.createEntry(
+                name = name,
+                type = "tap_jingle",
+                payload = payload
             )
+            _tapAuthUiState.value = TapAuthUiState(message = "Saved '$name' ✅")
         }
     }
 
-    fun clearTapEnrollment() {
+    // Verify a tap attempt against an existing entry (by id).
+    fun authenticateTapAgainstEntry(entryId: Long, attemptIntervals: List<Long>) {
         viewModelScope.launch {
-            repository.clearTapEnrollment()
-            _tapAuthUiState.value = _tapAuthUiState.value.copy(
-                isEnrolled = false,
-                lastResult = null,
-                message = "Enrollment cleared"
-            )
-        }
-    }
+            val entry = repository.getEntryById(entryId)
 
-    fun authenticateTap(intervals: List<Long>) {
-        viewModelScope.launch {
-            val enrolled = repository.loadTapEnrollment()
-
-            if (enrolled == null) {
-                _tapAuthUiState.value = _tapAuthUiState.value.copy(
-                    lastResult = false,
-                    message = "No enrollment saved yet"
-                )
+            if (entry == null) {
+                _tapAuthUiState.value = TapAuthUiState(lastResult = false, message = "Entry not found")
+                return@launch
+            }
+            if (entry.type != "tap_jingle") {
+                _tapAuthUiState.value = TapAuthUiState(lastResult = false, message = "Not a tap-jingle entry")
+                return@launch
+            }
+            if (attemptIntervals.isEmpty()) {
+                _tapAuthUiState.value = TapAuthUiState(lastResult = false, message = "Not enough taps")
                 return@launch
             }
 
-            if (intervals.isEmpty()) {
-                _tapAuthUiState.value = _tapAuthUiState.value.copy(
-                    lastResult = false,
-                    message = "Not enough taps (need at least 2 taps)"
-                )
-                return@launch
-            }
+            val enrolledIntervals = entry.payload.split(",").mapNotNull { it.toLongOrNull() }
+            val success = tapMatches(enrolledIntervals, attemptIntervals)
 
-            val success = tapMatches(enrolled, intervals)
-
-            _tapAuthUiState.value = _tapAuthUiState.value.copy(
+            _tapAuthUiState.value = TapAuthUiState(
                 lastResult = success,
                 message = if (success) "✅ Authentication success" else "❌ Authentication failed"
             )
         }
     }
 
-    // --- Core matching logic (simple + good enough) ---
+    fun deleteEntry(id: Long) {
+        viewModelScope.launch { repository.deleteEntry(id) }
+    }
+
+    // --- Core matching logic (keep this) ---
     private fun tapMatches(enrolled: List<Long>, attempt: List<Long>): Boolean {
         if (enrolled.size != attempt.size) return false
 
@@ -102,14 +83,14 @@ class AuthViewModel(
 
         val scale = attemptAvg / enrolledAvg
 
-        val minTolMs = 40.0          // never smaller than 40ms
-        val maxTolMs = 140.0         // never larger than 140ms
-        val relTol = 0.18            // 18% tolerance
+        val minTolMs = 40.0
+        val maxTolMs = 140.0
+        val relTol = 0.18
 
         return enrolled.indices.all { i ->
             val expected = enrolled[i] * scale
             val tol = (expected * relTol).coerceIn(minTolMs, maxTolMs)
-            kotlin.math.abs(attempt[i] - expected) <= tol
+            abs(attempt[i] - expected) <= tol
         }
     }
 }

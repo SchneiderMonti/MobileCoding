@@ -1,24 +1,23 @@
 package at.ustp.accessgate.db
 
-import androidx.room.Dao
-import androidx.room.Insert
-import androidx.room.OnConflictStrategy
-import androidx.room.Query
+import androidx.room.*
 import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface AuthDao {
 
+    @Query("SELECT * FROM auth_entries ORDER BY updatedAt DESC")
+    fun getAllEntries(): Flow<List<AuthEntryEntity>>
 
-    @Query("SELECT * FROM auth_enrollments")
-    fun getAllEnrollments(): kotlinx.coroutines.flow.Flow<List<AuthEnrollmentEntity>>
+    @Query("SELECT * FROM auth_entries WHERE id = :id LIMIT 1")
+    suspend fun getEntryById(id: Long): AuthEntryEntity?
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun saveEnrollment(entity: AuthEnrollmentEntity)
+    @Insert
+    suspend fun insertEntry(entity: AuthEntryEntity): Long
 
-    @Query("SELECT * FROM auth_enrollments WHERE methodId = :methodId LIMIT 1")
-    suspend fun getEnrollment(methodId: String): AuthEnrollmentEntity?
+    @Update
+    suspend fun updateEntry(entity: AuthEntryEntity)
 
-    @Query("DELETE FROM auth_enrollments WHERE methodId = :methodId")
-    suspend fun deleteEnrollment(methodId: String)
+    @Query("DELETE FROM auth_entries WHERE id = :id")
+    suspend fun deleteEntryById(id: Long)
 }

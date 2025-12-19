@@ -1,24 +1,41 @@
 package at.ustp.accessgate.data
 
 import at.ustp.accessgate.db.AuthDao
-import at.ustp.accessgate.db.AuthEnrollmentEntity
+import at.ustp.accessgate.db.AuthEntryEntity
 import kotlinx.coroutines.flow.Flow
 
 class AuthRepository(private val dao: AuthDao) {
 
-    suspend fun saveTapEnrollment(intervals: List<Long>) {
-        val payload = intervals.joinToString(",")
-        dao.saveEnrollment(AuthEnrollmentEntity("tap_jingle", payload))
+    val entries: Flow<List<AuthEntryEntity>> = dao.getAllEntries()
+
+    suspend fun createEntry(name: String, type: String, payload: String): Long {
+        val now = System.currentTimeMillis()
+        return dao.insertEntry(
+            AuthEntryEntity(
+                name = name,
+                type = type,
+                payload = payload,
+                createdAt = now,
+                updatedAt = now
+            )
+        )
     }
 
-    suspend fun loadTapEnrollment(): List<Long>? {
-        val entity = dao.getEnrollment("tap_jingle") ?: return null
-        return entity.payload.split(",").map { it.toLong() }
+    suspend fun getEntryById(id: Long): AuthEntryEntity? {
+        return dao.getEntryById(id)
     }
 
-    suspend fun clearTapEnrollment() {
-        dao.deleteEnrollment("tap_jingle")
+    suspend fun renameEntry(id: Long, newName: String) {
+        val existing = dao.getEntryById(id) ?: return
+        dao.updateEntry(existing.copy(name = newName, updatedAt = System.currentTimeMillis()))
     }
 
-    val enrollments: Flow<List<AuthEnrollmentEntity>> = dao.getAllEnrollments()
+    suspend fun updatePayload(id: Long, newPayload: String) {
+        val existing = dao.getEntryById(id) ?: return
+        dao.updateEntry(existing.copy(payload = newPayload, updatedAt = System.currentTimeMillis()))
+    }
+
+    suspend fun deleteEntry(id: Long) {
+        dao.deleteEntryById(id)
+    }
 }

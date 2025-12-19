@@ -1,6 +1,9 @@
 package at.ustp.accessgate.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -10,14 +13,15 @@ import at.ustp.accessgate.userinterfaces.AuthViewModel
 @Composable
 fun AuthListScreen(
     viewModel: AuthViewModel,
-    onAddAuthenticationClick: () -> Unit,
-    onTapJingleClick: () -> Unit
+    onAddAuthClick: () -> Unit,
+    onEntryClick: (Long) -> Unit
 ) {
-    val enrollments by viewModel.enrollments.collectAsState(initial = emptyList())
+    // 👇 THIS is where the line goes
+    val entries by viewModel.entries.collectAsState(initial = emptyList())
 
     Scaffold(
         floatingActionButton = {
-            FloatingActionButton(onClick = onAddAuthenticationClick) {
+            FloatingActionButton(onClick = onAddAuthClick) {
                 Text("+")
             }
         }
@@ -26,21 +30,32 @@ fun AuthListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp)
+                .padding(16.dp)
         ) {
-            Text("Authentication Methods", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                text = "Authentication Methods",
+                style = MaterialTheme.typography.headlineSmall
+            )
 
-            if (enrollments.isEmpty()) {
-                Text("No enrollments yet.")
+            Spacer(Modifier.height(16.dp))
+
+            if (entries.isEmpty()) {
+                Text("No enrollments yet")
             } else {
-                Text("Enrollments in DB: ${enrollments.size}")
-                // Later you’ll list them properly with LazyColumn
-            }
-
-            // For now your demo method button
-            Button(onClick = onTapJingleClick) {
-                Text("Tap Jingle (Knock Code)")
+                LazyColumn {
+                    items(
+                        items = entries,
+                        key = { it.id }
+                    ) { entry ->
+                        ListItem(
+                            headlineContent = { Text(entry.name) },
+                            supportingContent = { Text(entry.type) },
+                            modifier = Modifier.clickable {
+                                onEntryClick(entry.id)
+                            }
+                        )
+                    }
+                }
             }
         }
     }

@@ -18,7 +18,6 @@ fun TapAuthScreen(
 ) {
     val state by viewModel.tapAuthUiState.collectAsState()
 
-    // store raw tap timestamps
     val tapTimes = remember { mutableStateListOf<Long>() }
 
     fun intervalsFromTapTimes(times: List<Long>): List<Long> {
@@ -37,12 +36,6 @@ fun TapAuthScreen(
             style = MaterialTheme.typography.headlineSmall
         )
 
-        Text(
-            text = "Enrolled: ${state.isEnrolled}",
-            style = MaterialTheme.typography.bodyLarge
-        )
-
-        // Big tap area
         Box(
             modifier = Modifier
                 .fillMaxWidth()
@@ -60,30 +53,14 @@ fun TapAuthScreen(
             Button(
                 onClick = {
                     val intervals = intervalsFromTapTimes(tapTimes)
-                    viewModel.enrollTap(intervals)
+                    viewModel.createTapJingleEntry(
+                        name = "My Tap Jingle",
+                        intervals = intervals
+                    )
                     tapTimes.clear()
                 }
             ) {
-                Text("Enroll")
-            }
-
-            Button(
-                onClick = {
-                    val intervals = intervalsFromTapTimes(tapTimes)
-                    viewModel.authenticateTap(intervals)
-                    tapTimes.clear()
-                }
-            ) {
-                Text("Authenticate")
-            }
-        }
-
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = { tapTimes.clear() }) {
-                Text("Clear taps")
-            }
-            OutlinedButton(onClick = { viewModel.clearTapEnrollment() }) {
-                Text("Reset enrollment")
+                Text("Save")
             }
         }
 

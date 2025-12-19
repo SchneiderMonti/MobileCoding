@@ -5,6 +5,6 @@ import androidx.room.PrimaryKey
 
 @Entity(tableName = "auth_enrollments")
 data class AuthEnrollmentEntity(
-    @PrimaryKey val methodId: String, // e.g. "tap_jingle"
-    val payload: String               // e.g. "120,300,110,450"
+    @PrimaryKey val methodId: String,
+    val payload: String
 )
