@@ -3,9 +3,11 @@ package at.ustp.accessgate.screens
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import at.ustp.accessgate.userinterfaces.AuthViewModel
 import at.ustp.accessgate.userinterfaces.AuthViewModelFactory
 
@@ -23,28 +25,29 @@ fun AuthUI() {
         composable("list") {
             AuthListScreen(
                 viewModel = authViewModel,
-                onAddAuthClick = { navController.navigate("choose_method") },
+                onAddAuthClick = { navController.navigate("add_auth") },
                 onEntryClick = { entryId ->
-                    // You can add a detail screen later.
-                    // For now, just go to tap screen:
-                    navController.navigate("tap")
-                    // Later you’ll do: navController.navigate("detail/$entryId")
+                    navController.navigate("detail/$entryId")
                 }
             )
         }
 
-        composable("choose_method") {
-            MethodsListScreen(
-                onTapJingleClick = { navController.navigate("tap") },
-                onBack = { navController.popBackStack() }
+        composable("add_auth") {
+            AddAuthWizardScreen(
+                viewModel = authViewModel,
+                onDone = {
+                    navController.popBackStack("list", inclusive = false)
+                }
             )
         }
 
-        composable("tap") {
-            TapAuthScreen(
-                viewModel = authViewModel,
-                onBack = { navController.popBackStack() }
-            )
+        composable(
+            "detail/{entryId}",
+            arguments = listOf(navArgument("entryId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val entryId = backStackEntry.arguments?.getLong("entryId") ?: -1L
+            DetailAuthScreen(entryId = entryId, viewModel = authViewModel)
         }
+
     }
 }

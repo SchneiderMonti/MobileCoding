@@ -10,8 +10,10 @@ interface AuthDao {
     fun getAllEntries(): Flow<List<AuthEntryEntity>>
 
     @Query("SELECT * FROM auth_entries WHERE id = :id LIMIT 1")
-    suspend fun getEntryById(id: Long): AuthEntryEntity?
+    fun observeEntryById(id: Long): Flow<AuthEntryEntity?>
 
+    @Query("SELECT * FROM auth_entries WHERE id = :id LIMIT 1")
+    suspend fun getEntryById(id: Long): AuthEntryEntity?
     @Insert
     suspend fun insertEntry(entity: AuthEntryEntity): Long
 

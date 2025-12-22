@@ -16,7 +16,7 @@ fun AuthListScreen(
     onAddAuthClick: () -> Unit,
     onEntryClick: (Long) -> Unit
 ) {
-    // 👇 THIS is where the line goes
+
     val entries by viewModel.entries.collectAsState(initial = emptyList())
 
     Scaffold(

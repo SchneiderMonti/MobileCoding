@@ -21,10 +21,12 @@ class AuthRepository(private val dao: AuthDao) {
         )
     }
 
-    suspend fun getEntryById(id: Long): AuthEntryEntity? {
-        return dao.getEntryById(id)
-    }
+    fun observeEntryById(id: Long): Flow<AuthEntryEntity?> = dao.observeEntryById(id)
 
+    suspend fun getEntryById(id: Long): AuthEntryEntity? = dao.getEntryById(id)
+
+
+    /*
     suspend fun renameEntry(id: Long, newName: String) {
         val existing = dao.getEntryById(id) ?: return
         dao.updateEntry(existing.copy(name = newName, updatedAt = System.currentTimeMillis()))
@@ -34,6 +36,8 @@ class AuthRepository(private val dao: AuthDao) {
         val existing = dao.getEntryById(id) ?: return
         dao.updateEntry(existing.copy(payload = newPayload, updatedAt = System.currentTimeMillis()))
     }
+
+     */
 
     suspend fun deleteEntry(id: Long) {
         dao.deleteEntryById(id)
