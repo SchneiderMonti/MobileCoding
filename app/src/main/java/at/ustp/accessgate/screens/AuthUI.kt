@@ -46,7 +46,7 @@ fun AuthUI() {
             arguments = listOf(navArgument("entryId") { type = NavType.LongType })
         ) { backStackEntry ->
             val entryId = backStackEntry.arguments?.getLong("entryId") ?: -1L
-            DetailAuthScreen(entryId = entryId, viewModel = authViewModel)
+            DetailAuthScreen(entryId = entryId, viewModel = authViewModel, onDeleted = {navController.popBackStack()})
         }
 
     }

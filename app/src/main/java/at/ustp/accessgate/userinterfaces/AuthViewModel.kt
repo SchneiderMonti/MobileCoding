@@ -166,6 +166,14 @@ class AuthViewModel(
         return repository.observeEntryById(id)
     }
 
+    fun deleteEntry(entryId: Long) {
+        viewModelScope.launch {
+            repository.deleteEntryById(entryId)
+            _tapAuthUiState.value = TapAuthUiState(message = "Deleted ✅")
+        }
+    }
+
+
 
     fun createTapJingleEntry(name: String, intervals: List<Long>) {
         viewModelScope.launch {
@@ -213,9 +221,7 @@ class AuthViewModel(
 
      */
 
-    fun deleteEntry(id: Long) {
-        viewModelScope.launch { repository.deleteEntry(id) }
-    }
+
 
     // --- Core matching logic (kept) ---
     private fun tapMatches(enrolled: List<Long>, attempt: List<Long>): Boolean {
