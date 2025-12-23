@@ -18,7 +18,9 @@ data class TapAuthUiState(
 
 enum class AuthType(val id: String, val displayName: String) {
     TAP_JINGLE("tap_jingle", "Tap Jingle"),
-    PIN("pin", "Pin Code")
+    PIN("pin", "Pin Code"),
+    FINGERPRINT("fingerprint", "Fingerprint"),
+    FLIP_PATTERN("flip_pattern", "Flip Pattern")
 }
 
 enum class EnrollmentStep {
@@ -38,6 +40,12 @@ data class EnrollmentUiState(
 
     val firstPin: String = "",
     val repeatPin: String = "",
+
+    val firstFingerPrint: Boolean = false,
+    val repeatFingerPrint: Boolean = false,
+
+    val firstFlipPayload: String = "",
+    val repeatFlipPayload: String = "",
 
     val name: String = "",
     val error: String? = null
@@ -175,6 +183,78 @@ class AuthViewModel(
         )
     }
 
+    fun setEnrollmentFirstFlip(payload: String) {
+        if (payload.isBlank()) {
+            _enrollmentUiState.value = _enrollmentUiState.value.copy(
+                error = "No movement recorded.",
+                step = EnrollmentStep.DoAuth
+            )
+            return
+        }
+
+        _enrollmentUiState.value = _enrollmentUiState.value.copy(
+            firstFlipPayload = payload,
+            error = null,
+            step = EnrollmentStep.RepeatAuth
+        )
+    }
+
+    fun setEnrollmentRepeatFlip(payload: String) {
+        val first = _enrollmentUiState.value.firstFlipPayload
+        if (first.isBlank()) {
+            _enrollmentUiState.value = _enrollmentUiState.value.copy(
+                error = "First recording missing. Please start again.",
+                step = EnrollmentStep.ChooseMethod
+            )
+            return
+        }
+
+        if (!flipMatches(first, payload)) {
+            _enrollmentUiState.value = _enrollmentUiState.value.copy(
+                repeatFlipPayload = "",
+                error = "Doesn't match the first attempt. Please repeat again.",
+                step = EnrollmentStep.RepeatAuth
+            )
+            return
+        }
+
+        _enrollmentUiState.value = _enrollmentUiState.value.copy(
+            repeatFlipPayload = payload,
+            error = null,
+            step = EnrollmentStep.Name
+        )
+    }
+
+    private fun flipMatches(firstPayload: String, repeatPayload: String): Boolean {
+        val a = firstPayload.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        val b = repeatPayload.split(",").map { it.trim() }.filter { it.isNotBlank() }
+        return a == b
+    }
+
+    fun setEnrollmentFirstFingerprint() {
+        _enrollmentUiState.value = _enrollmentUiState.value.copy(
+            firstFingerPrint = true,
+            error = null,
+            step = EnrollmentStep.RepeatAuth
+        )
+    }
+
+
+    fun setEnrollmentRepeatFingerPrint() {
+        if (!_enrollmentUiState.value.firstFingerPrint) {
+            _enrollmentUiState.value = _enrollmentUiState.value.copy(
+                error = "First Fingerprint step missing! Please start again!",
+                step = EnrollmentStep.ChooseMethod
+            )
+            return
+        }
+        _enrollmentUiState.value = _enrollmentUiState.value.copy(
+            repeatFingerPrint = true,
+            error = null,
+            step = EnrollmentStep.Name
+        )
+    }
+
     fun setEnrollmentName(name: String) {
         _enrollmentUiState.value = _enrollmentUiState.value.copy(
             name = name.trim(),
@@ -189,7 +269,6 @@ class AuthViewModel(
 
         viewModelScope.launch {
 
-            // 1) Validate + 2) Build payload per type
             val (defaultName, payload) = when (type) {
 
                 AuthType.TAP_JINGLE -> {
@@ -204,21 +283,28 @@ class AuthViewModel(
                     "Tap Jingle" to intervals.joinToString(",")
                 }
 
-                // Example future method:
-                 AuthType.PIN -> {
-                     val pin = state.firstPin
-                     if (pin.length < 4) {
-                         _enrollmentUiState.value = state.copy(
-                             error = "PIN must be at least 4 digits.",
-                             step = EnrollmentStep.DoAuth
-                         )
-                         return@launch
-                     }
-                     "PIN" to pin
-                 }
+                AuthType.FLIP_PATTERN -> {
+                    val p = state.firstFlipPayload
+                    if (p.isBlank()) {
+                        _enrollmentUiState.value = state.copy(
+                            error = "Nothing to save. Please record the movement pattern.",
+                            step = EnrollmentStep.DoAuth
+                        )
+                        return@launch
+                    }
+                    "Flip Pattern" to p
+                }
+
+                // keep your other types here (PIN / biometric simulation)
+                else -> {
+                    _enrollmentUiState.value = state.copy(
+                        error = "Unsupported auth type yet.",
+                        step = EnrollmentStep.ChooseMethod
+                    )
+                    return@launch
+                }
             }
 
-            // 3) Save
             val name = state.name.ifBlank { defaultName }
 
             repository.createEntry(
@@ -231,6 +317,7 @@ class AuthViewModel(
             startEnrollment()
         }
     }
+
 
     // --- Existing helpers (kept) ---
 
