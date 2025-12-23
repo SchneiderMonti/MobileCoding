@@ -335,51 +335,6 @@ class AuthViewModel(
 
 
 
-    fun createTapJingleEntry(name: String, intervals: List<Long>) {
-        viewModelScope.launch {
-            if (intervals.isEmpty()) {
-                _tapAuthUiState.value = TapAuthUiState(message = "Not enough taps (need at least 2 taps)")
-                return@launch
-            }
-            val payload = intervals.joinToString(",")
-            repository.createEntry(
-                name = name,
-                type = "tap_jingle",
-                payload = payload
-            )
-            _tapAuthUiState.value = TapAuthUiState(message = "Saved '$name' ✅")
-        }
-    }
-
-    /*
-    fun authenticateTapAgainstEntry(entryId: Long, attemptIntervals: List<Long>) {
-        viewModelScope.launch {
-            val entry = repository.getEntryById(entryId)
-
-            if (entry == null) {
-                _tapAuthUiState.value = TapAuthUiState(lastResult = false, message = "Entry not found")
-                return@launch
-            }
-            if (entry.type != "tap_jingle") {
-                _tapAuthUiState.value = TapAuthUiState(lastResult = false, message = "Not a tap-jingle entry")
-                return@launch
-            }
-            if (attemptIntervals.isEmpty()) {
-                _tapAuthUiState.value = TapAuthUiState(lastResult = false, message = "Not enough taps")
-                return@launch
-            }
-
-            val enrolledIntervals = entry.payload.split(",").mapNotNull { it.toLongOrNull() }
-            val success = tapMatches(enrolledIntervals, attemptIntervals)
-
-            _tapAuthUiState.value = TapAuthUiState(
-                lastResult = success,
-                message = if (success) "✅ Authentication success" else "❌ Authentication failed"
-            )
-        }
-    }
-
-     */
 
 
 
@@ -403,4 +358,153 @@ class AuthViewModel(
             abs(attempt[i] - expected) <= tol
         }
     }
+
+    // ============================================================================================
+    // AUTHENTICATE AGAINST ENTRY!!!!
+    // ===========================================================================================
+
+    private val _authResult = MutableStateFlow<TapAuthUiState>(TapAuthUiState())
+    val authResult: StateFlow<TapAuthUiState> = _authResult.asStateFlow()
+
+    fun authenticateAgainstEntry(entry: AuthEntryEntity, attemptPayload: String) {
+        viewModelScope.launch {
+            when (entry.type) {
+
+                AuthType.TAP_JINGLE.id -> {
+                    val enrolled = entry.payload.split(",").mapNotNull { it.toLongOrNull() }
+                    val attempt = attemptPayload.split(",").mapNotNull { it.toLongOrNull() }
+
+                    if (enrolled.isEmpty() || attempt.isEmpty()) {
+                        _authResult.value = TapAuthUiState(false, "Missing tap data")
+                        return@launch
+                    }
+
+                    val ok = tapMatches(enrolled, attempt)
+                    _authResult.value = TapAuthUiState(
+                        lastResult = ok,
+                        message = if (ok) "✅ Tap Jingle match" else "❌ Tap Jingle mismatch"
+                    )
+                }
+
+                AuthType.PIN.id -> {
+                    val ok = entry.payload == attemptPayload.trim()
+                    _authResult.value = TapAuthUiState(
+                        lastResult = ok,
+                        message = if (ok) "✅ PIN correct" else "❌ Wrong PIN"
+                    )
+                }
+
+                AuthType.FINGERPRINT.id -> {
+                    // For now: UI triggers BiometricPrompt and calls viewModel.setBiometricResult(...)
+                    _authResult.value = TapAuthUiState(null, "Use biometric prompt in UI")
+                }
+
+                else -> {
+                    _authResult.value = TapAuthUiState(false, "Unknown auth type: ${entry.type}")
+                }
+            }
+        }
+    }
+
+    fun setBiometricResult(success: Boolean, msg: String) {
+        _authResult.value = TapAuthUiState(
+            lastResult = success,
+            message = msg
+        )
+    }
+
+    // --- Detail screen actions ---
+
+    fun deleteEntryById(id: Long) {
+        viewModelScope.launch {
+            repository.deleteEntryById(id)   // <-- make sure this exists in repo/dao
+        }
+    }
+
+    /** Optional helper to just show errors from UI callbacks */
+    fun setAuthMessage(msg: String) {
+        _tapAuthUiState.value = _tapAuthUiState.value.copy(message = msg)
+    }
+
+    fun authenticateTap(entryId: Long, attemptIntervals: List<Long>) {
+        viewModelScope.launch {
+            val entry = repository.getEntryById(entryId)
+            if (entry == null) {
+                _tapAuthUiState.value = TapAuthUiState(false, "Entry not found")
+                return@launch
+            }
+            if (entry.type != AuthType.TAP_JINGLE.id) {
+                _tapAuthUiState.value = TapAuthUiState(false, "Wrong method for this entry")
+                return@launch
+            }
+
+            val enrolled = entry.payload.split(",").mapNotNull { it.toLongOrNull() }
+            val ok = tapMatches(enrolled, attemptIntervals)
+
+            _tapAuthUiState.value = TapAuthUiState(
+                lastResult = ok,
+                message = if (ok) "✅ Authentication success" else "❌ Authentication failed"
+            )
+        }
+    }
+
+    fun authenticatePin(entryId: Long, pin: String) {
+        viewModelScope.launch {
+            val entry = repository.getEntryById(entryId)
+            if (entry == null) {
+                _tapAuthUiState.value = TapAuthUiState(false, "Entry not found")
+                return@launch
+            }
+            if (entry.type != AuthType.PIN.id) {
+                _tapAuthUiState.value = TapAuthUiState(false, "Wrong method for this entry")
+                return@launch
+            }
+
+            val ok = entry.payload == pin.trim()
+
+            _tapAuthUiState.value = TapAuthUiState(
+                lastResult = ok,
+                message = if (ok) "✅ Authentication success" else "❌ Wrong PIN"
+            )
+        }
+    }
+
+    fun authenticateFlip(entryId: Long, attemptPayload: String) {
+        viewModelScope.launch {
+            val entry = repository.getEntryById(entryId)
+            if (entry == null) {
+                _tapAuthUiState.value = TapAuthUiState(false, "Entry not found")
+                return@launch
+            }
+            if (entry.type != AuthType.FLIP_PATTERN.id) {
+                _tapAuthUiState.value = TapAuthUiState(false, "Wrong method for this entry")
+                return@launch
+            }
+
+            val ok = entry.payload == attemptPayload
+
+            _tapAuthUiState.value = TapAuthUiState(
+                lastResult = ok,
+                message = if (ok) "✅ Authentication success" else "❌ Flip pattern mismatch"
+            )
+        }
+    }
+
+    /**
+     * IMPORTANT LIMITATION:
+     * Android biometric auth only tells you “user authenticated”, not WHICH finger/face.
+     * So this can only be “success if the system says success”.
+     */
+    fun authenticateBiometricSuccess(entryId: Long) {
+        _tapAuthUiState.value = TapAuthUiState(
+            lastResult = true,
+            message = "✅ Biometric authentication success"
+        )
+    }
+
+
+
 }
+
+
+
