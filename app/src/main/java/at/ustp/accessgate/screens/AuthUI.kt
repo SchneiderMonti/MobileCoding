@@ -1,5 +1,6 @@
 package at.ustp.accessgate.screens
 
+import AddAuthWizardScreen
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -25,14 +26,14 @@ fun AuthUI() {
         composable("list") {
             AuthListScreen(
                 viewModel = authViewModel,
-                onAddAuthClick = { navController.navigate("add_auth") },
+                onAddAuthClick = { navController.navigate("add_auth_wiz") },
                 onEntryClick = { entryId ->
                     navController.navigate("detail/$entryId")
                 }
             )
         }
 
-        composable("add_auth") {
+        composable("add_auth_wiz") {
             AddAuthWizardScreen(
                 viewModel = authViewModel,
                 onDone = {

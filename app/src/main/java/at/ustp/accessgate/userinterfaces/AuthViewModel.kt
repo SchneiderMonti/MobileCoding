@@ -17,7 +17,8 @@ data class TapAuthUiState(
 )
 
 enum class AuthType(val id: String, val displayName: String) {
-    TAP_JINGLE("tap_jingle", "Tap Jingle")
+    TAP_JINGLE("tap_jingle", "Tap Jingle"),
+    PIN("pin", "Pin Code")
 }
 
 enum class EnrollmentStep {
@@ -31,8 +32,13 @@ enum class EnrollmentStep {
 data class EnrollmentUiState(
     val step: EnrollmentStep = EnrollmentStep.ChooseMethod,
     val type: AuthType? = null,
+
     val firstIntervals: List<Long> = emptyList(),
     val repeatIntervals: List<Long> = emptyList(),
+
+    val firstPin: String = "",
+    val repeatPin: String = "",
+
     val name: String = "",
     val error: String? = null
 )
@@ -56,13 +62,63 @@ class AuthViewModel(
     }
 
     fun selectEnrollmentMethod(type: AuthType) {
-        _enrollmentUiState.value = _enrollmentUiState.value.copy(
+        _enrollmentUiState.value = EnrollmentUiState(
             type = type,
-            step = EnrollmentStep.DoAuth,
+            step = EnrollmentStep.DoAuth
+        )
+    }
+
+
+    fun setEnrollmentFirstPin(pin: String) {
+        val cleaned = pin.trim()
+        if (cleaned.length < 4) {
+            _enrollmentUiState.value = _enrollmentUiState.value.copy(
+                error = "PIN must be at least 4 digits.",
+                step = EnrollmentStep.DoAuth
+            )
+            return
+        }
+
+        _enrollmentUiState.value = _enrollmentUiState.value.copy(
+            firstPin = cleaned,
             error = null,
-            firstIntervals = emptyList(),
-            repeatIntervals = emptyList(),
-            name = ""
+            step = EnrollmentStep.RepeatAuth
+        )
+    }
+
+    fun setEnrollmentRepeatPin(pin: String) {
+        val cleaned = pin.trim()
+        val first = _enrollmentUiState.value.firstPin
+
+        if (cleaned.length < 4) {
+            _enrollmentUiState.value = _enrollmentUiState.value.copy(
+                error = "PIN must be at least 4 digits.",
+                step = EnrollmentStep.RepeatAuth
+            )
+            return
+        }
+
+        if (first.isBlank()) {
+            _enrollmentUiState.value = _enrollmentUiState.value.copy(
+                error = "First PIN missing. Please start again.",
+                step = EnrollmentStep.DoAuth
+            )
+            return
+        }
+
+        if (cleaned != first) {
+            _enrollmentUiState.value = _enrollmentUiState.value.copy(
+                repeatPin = "",
+                error = "PINs do not match. Please repeat again.",
+                step = EnrollmentStep.RepeatAuth
+            )
+            return
+        }
+
+        _enrollmentUiState.value = _enrollmentUiState.value.copy(
+            repeatPin = cleaned,
+            error = null,
+            step = EnrollmentStep.Name
         )
     }
 
@@ -132,7 +188,10 @@ class AuthViewModel(
         val type = state.type ?: return
 
         viewModelScope.launch {
-            when (type) {
+
+            // 1) Validate + 2) Build payload per type
+            val (defaultName, payload) = when (type) {
+
                 AuthType.TAP_JINGLE -> {
                     val intervals = state.firstIntervals
                     if (intervals.isEmpty()) {
@@ -142,20 +201,34 @@ class AuthViewModel(
                         )
                         return@launch
                     }
-
-                    val name = state.name.ifBlank { "Tap Jingle" }
-                    val payload = intervals.joinToString(",")
-
-                    repository.createEntry(
-                        name = name,
-                        type = type.id,
-                        payload = payload
-                    )
-
-                    _tapAuthUiState.value = TapAuthUiState(message = "Saved '$name' ✅")
-                    startEnrollment()
+                    "Tap Jingle" to intervals.joinToString(",")
                 }
+
+                // Example future method:
+                 AuthType.PIN -> {
+                     val pin = state.firstPin
+                     if (pin.length < 4) {
+                         _enrollmentUiState.value = state.copy(
+                             error = "PIN must be at least 4 digits.",
+                             step = EnrollmentStep.DoAuth
+                         )
+                         return@launch
+                     }
+                     "PIN" to pin
+                 }
             }
+
+            // 3) Save
+            val name = state.name.ifBlank { defaultName }
+
+            repository.createEntry(
+                name = name,
+                type = type.id,
+                payload = payload
+            )
+
+            _tapAuthUiState.value = TapAuthUiState(message = "Saved '$name' ✅")
+            startEnrollment()
         }
     }
 
