@@ -19,6 +19,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
@@ -41,14 +42,16 @@ fun DetailAuthScreen(
     val entry by viewModel.observeEntryById(entryId).collectAsState(initial = null)
     val authUi by viewModel.tapAuthUiState.collectAsState()
 
+    // ✅ Clear any old "Saved ..." messages when opening a detail screen
+    LaunchedEffect(entryId) {
+        viewModel.clearAuthMessage()
+    }
+
     Scaffold(
         contentWindowInsets = WindowInsets.safeDrawing,
-        topBar = {
-            TopAppBar(
-                title = { Text("Details") }
-            )
-        }
+        topBar = { TopAppBar(title = { Text("Details") }) }
     ) { padding ->
+
         if (entry == null) {
             Column(
                 modifier = Modifier
@@ -78,37 +81,27 @@ fun DetailAuthScreen(
             Text("Authenticate", style = MaterialTheme.typography.titleMedium)
 
             when (e.type) {
-                AuthType.TAP_JINGLE.id -> {
-                    TapInputBox { intervals ->
-                        viewModel.authenticateTap(entryId, intervals)
-                    }
+                AuthType.TAP_JINGLE.id -> TapInputBox { intervals ->
+                    viewModel.authenticateTap(entryId, intervals)
                 }
 
-                AuthType.PIN.id -> {
-                    PinInputBox(
-                        label = "Enter PIN",
-                        onDone = { pin -> viewModel.authenticatePin(entryId, pin) }
-                    )
-                }
+                AuthType.PIN.id -> PinInputBox(
+                    label = "Enter PIN",
+                    onDone = { pin -> viewModel.authenticatePin(entryId, pin) }
+                )
 
-                AuthType.FINGERPRINT.id -> {
-                    FingerprintBox(
-                        title = "Biometric scan",
-                        onSuccess = { viewModel.authenticateBiometricSuccess(entryId) },
-                        onError = { msg -> viewModel.setAuthMessage(msg) }
-                    )
-                }
+                AuthType.FINGERPRINT.id -> FingerprintBox(
+                    title = "Biometric scan",
+                    onSuccess = { viewModel.authenticateBiometricSuccess(entryId) },
+                    onError = { msg -> viewModel.setAuthMessage(msg) }
+                )
 
-                AuthType.FLIP_PATTERN.id -> {
-                    FlipPatternBox(
-                        title = "Record flip pattern",
-                        onRecorded = { payload -> viewModel.authenticateFlip(entryId, payload) }
-                    )
-                }
+                AuthType.FLIP_PATTERN.id -> FlipPatternBox(
+                    title = "Record flip pattern",
+                    onRecorded = { payload -> viewModel.authenticateFlip(entryId, payload) }
+                )
 
-                else -> {
-                    Text("No authentication UI for type '${e.type}' yet.")
-                }
+                else -> Text("No authentication UI for type '${e.type}' yet.")
             }
 
             if (authUi.message.isNotBlank()) {
@@ -122,7 +115,10 @@ fun DetailAuthScreen(
             Spacer(Modifier.height(8.dp))
 
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                OutlinedButton(onClick = onBack) { Text("Back") }
+                OutlinedButton(onClick = {
+                    viewModel.clearAuthMessage()
+                    onBack()
+                }) { Text("Back") }
 
                 Button(
                     colors = ButtonDefaults.buttonColors(
@@ -130,11 +126,10 @@ fun DetailAuthScreen(
                     ),
                     onClick = {
                         viewModel.deleteEntry(entryId)
+                        viewModel.clearAuthMessage()
                         onDeleted()
                     }
-                ) {
-                    Text("Delete")
-                }
+                ) { Text("Delete") }
             }
         }
     }

@@ -360,7 +360,9 @@ class AuthViewModel(
         }
     }
 
-
+    fun clearAuthMessage() {
+        _tapAuthUiState.value = TapAuthUiState(lastResult = null, message = "")
+    }
 
 
 

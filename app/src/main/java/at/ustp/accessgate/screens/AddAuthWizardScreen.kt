@@ -52,7 +52,7 @@ fun AddAuthWizardScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .windowInsetsPadding(WindowInsets.safeDrawing) // ✅ avoids camera cutout + status bar
+                .windowInsetsPadding(WindowInsets.safeDrawing)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(14.dp)

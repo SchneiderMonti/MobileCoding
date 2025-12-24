@@ -24,24 +24,23 @@ fun AuthListScreen(
     val entries by viewModel.entries.collectAsState(initial = emptyList())
 
     Scaffold(
+        floatingActionButtonPosition = FabPosition.Center,
         floatingActionButton = {
-            Box(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                contentAlignment = Alignment.Center
+            FloatingActionButton(
+                onClick = onAddAuthClick,
+                modifier = Modifier.size(72.dp),
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
+                elevation = FloatingActionButtonDefaults.elevation(
+                    defaultElevation = 6.dp,
+                    pressedElevation = 10.dp
+                )
             ) {
-                FloatingActionButton(
-                    onClick = onAddAuthClick,
-                    modifier = Modifier.size(72.dp),
-                    containerColor = MaterialTheme.colorScheme.primary
-                ) {
-                    Icon(
-                        imageVector = Icons.Default.Add,
-                        contentDescription = "Add authentication",
-                        modifier = Modifier.size(32.dp)
-                    )
-                }
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "Add authentication",
+                    modifier = Modifier.size(32.dp)
+                )
             }
         }
     ) { padding ->
