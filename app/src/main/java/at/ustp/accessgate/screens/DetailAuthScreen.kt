@@ -30,6 +30,9 @@ import at.ustp.accessgate.screens.components.PinInputBox
 import at.ustp.accessgate.screens.components.TapInputBox
 import at.ustp.accessgate.userinterfaces.AuthType
 import at.ustp.accessgate.userinterfaces.AuthViewModel
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -75,6 +78,9 @@ fun DetailAuthScreen(
         ) {
             Text("Name: ${e.name}", style = MaterialTheme.typography.titleMedium)
             Text("Type: ${e.type}", style = MaterialTheme.typography.bodyMedium)
+            Text("Created At: ${formatTimestamp(e.createdAt)}", style = MaterialTheme.typography.bodyMedium)
+            Text("Updated At: ${formatTimestamp(e.updatedAt)}", style = MaterialTheme.typography.bodyMedium)
+            Text("Payload: ${e.payload}", style = MaterialTheme.typography.bodyMedium)
 
             Divider()
 
@@ -133,4 +139,12 @@ fun DetailAuthScreen(
             }
         }
     }
+}
+
+fun formatTimestamp(timestamp: Long): String {
+    val formatter = DateTimeFormatter
+        .ofPattern("dd.MM.yyyy HH:mm")
+        .withZone(ZoneId.systemDefault())
+
+    return formatter.format(Instant.ofEpochMilli(timestamp))
 }

@@ -35,9 +35,54 @@ fun AddAuthWizardScreen(
     onDone: () -> Unit
 ) {
     val state by viewModel.enrollmentUiState.collectAsState()
+    var showMethodInfo by remember { mutableStateOf(false) }
+    var pendingMethod by remember { mutableStateOf<AuthType?>(null) }
 
     LaunchedEffect(Unit) {
         viewModel.startEnrollment()
+    }
+
+    if (showMethodInfo && pendingMethod != null) {
+        val method = pendingMethod!!
+
+        AlertDialog(
+            onDismissRequest = {
+                showMethodInfo = false
+                pendingMethod = null
+            },
+            title = { Text(method.displayName) },
+            text = {
+                Text(
+                    when (method) {
+                        AuthType.TAP_JINGLE ->
+                            "Tap a rhythm twice. We store the timing intervals and later compare your attempts."
+                        AuthType.PIN ->
+                            "Enter a PIN twice. We store the PIN (for MVP). Later you authenticate by entering it again."
+                        AuthType.FINGERPRINT ->
+                            "Uses Android’s biometric prompt. Note: Android does not reveal which finger—only success/fail."
+                        AuthType.FLIP_PATTERN ->
+                            "Flip the phone in a short pattern twice. We store the direction sequence."
+                    }
+                )
+            },
+            confirmButton = {
+                Button(onClick = {
+                    viewModel.selectEnrollmentMethod(method)
+                    showMethodInfo = false
+                    pendingMethod = null
+                }) {
+                    Text("OK")
+                }
+            },
+            dismissButton = {
+                OutlinedButton(onClick = {
+                    showMethodInfo = false
+                    pendingMethod = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 
     Scaffold(
@@ -66,25 +111,37 @@ fun AddAuthWizardScreen(
                     MethodButton(
                         label = "Tap Jingle",
                         typeId = AuthType.TAP_JINGLE.id,
-                        onClick = { viewModel.selectEnrollmentMethod(AuthType.TAP_JINGLE) }
+                        onClick = {
+                            pendingMethod = AuthType.TAP_JINGLE
+                            showMethodInfo = true
+                        }
                     )
 
                     MethodButton(
                         label = "PIN",
                         typeId = AuthType.PIN.id,
-                        onClick = { viewModel.selectEnrollmentMethod(AuthType.PIN) }
+                        onClick = {
+                            pendingMethod = AuthType.PIN
+                            showMethodInfo = true
+                        }
                     )
 
                     MethodButton(
                         label = "Fingerprint",
                         typeId = AuthType.FINGERPRINT.id,
-                        onClick = { viewModel.selectEnrollmentMethod(AuthType.FINGERPRINT) }
+                        onClick = {
+                            pendingMethod = AuthType.FINGERPRINT
+                            showMethodInfo = true
+                        }
                     )
 
                     MethodButton(
                         label = "Flip Pattern",
                         typeId = AuthType.FLIP_PATTERN.id,
-                        onClick = { viewModel.selectEnrollmentMethod(AuthType.FLIP_PATTERN) }
+                        onClick = {
+                            pendingMethod = AuthType.FLIP_PATTERN
+                            showMethodInfo = true
+                        }
                     )
                 }
 
