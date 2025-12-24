@@ -283,6 +283,43 @@ class AuthViewModel(
                     "Tap Jingle" to intervals.joinToString(",")
                 }
 
+                AuthType.PIN -> {
+                    val pin = state.firstPin.trim()
+                    val repeat = state.repeatPin.trim()
+
+                    if (pin.isBlank() || repeat.isBlank()) {
+                        _enrollmentUiState.value = state.copy(
+                            error = "PIN missing. Please enter and repeat your PIN.",
+                            step = EnrollmentStep.DoAuth
+                        )
+                        return@launch
+                    }
+
+                    if (pin != repeat) {
+                        _enrollmentUiState.value = state.copy(
+                            error = "PINs do not match. Please repeat again.",
+                            step = EnrollmentStep.RepeatAuth
+                        )
+                        return@launch
+                    }
+
+                    "PIN" to pin
+                }
+
+                AuthType.FINGERPRINT -> {
+                    // You can’t store “which finger” — only that this entry uses biometrics.
+                    if (!state.firstFingerPrint || !state.repeatFingerPrint) {
+                        _enrollmentUiState.value = state.copy(
+                            error = "Fingerprint enrollment not completed (do it twice).",
+                            step = EnrollmentStep.DoAuth
+                        )
+                        return@launch
+                    }
+
+                    // minimal payload (you can switch to JSON later)
+                    "Fingerprint" to "enabled"
+                }
+
                 AuthType.FLIP_PATTERN -> {
                     val p = state.firstFlipPayload
                     if (p.isBlank()) {
@@ -293,15 +330,6 @@ class AuthViewModel(
                         return@launch
                     }
                     "Flip Pattern" to p
-                }
-
-                // keep your other types here (PIN / biometric simulation)
-                else -> {
-                    _enrollmentUiState.value = state.copy(
-                        error = "Unsupported auth type yet.",
-                        step = EnrollmentStep.ChooseMethod
-                    )
-                    return@launch
                 }
             }
 
@@ -317,7 +345,6 @@ class AuthViewModel(
             startEnrollment()
         }
     }
-
 
     // --- Existing helpers (kept) ---
 

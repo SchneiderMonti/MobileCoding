@@ -1,14 +1,36 @@
 package at.ustp.accessgate.screens
 
-import androidx.compose.foundation.layout.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.Divider
+import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
-import at.ustp.accessgate.screens.components.*
+import at.ustp.accessgate.screens.components.FingerprintBox
+import at.ustp.accessgate.screens.components.FlipPatternBox
+import at.ustp.accessgate.screens.components.PinInputBox
+import at.ustp.accessgate.screens.components.TapInputBox
 import at.ustp.accessgate.userinterfaces.AuthType
 import at.ustp.accessgate.userinterfaces.AuthViewModel
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun DetailAuthScreen(
     entryId: Long,
@@ -19,86 +41,101 @@ fun DetailAuthScreen(
     val entry by viewModel.observeEntryById(entryId).collectAsState(initial = null)
     val authUi by viewModel.tapAuthUiState.collectAsState()
 
-    if (entry == null) {
-        Text("Loading...")
-        return
-    }
-
-    val e = entry!!
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp)
-    ) {
-        Text("Details", style = MaterialTheme.typography.headlineSmall)
-
-        Text("Name: ${e.name}")
-        Text("Type: ${e.type}")
-        Text("Payload: ${e.payload}")
-
-        Divider()
-
-        Text("Authenticate", style = MaterialTheme.typography.titleMedium)
-
-        when (e.type) {
-
-            AuthType.TAP_JINGLE.id -> {
-                TapInputBox { intervals ->
-                    viewModel.authenticateTap(entryId, intervals)
-                }
-            }
-
-            AuthType.PIN.id -> {
-                PinInputBox(
-                    label = "Enter PIN",
-                    onDone = { pin -> viewModel.authenticatePin(entryId, pin) }
-                )
-            }
-
-            AuthType.FINGERPRINT.id -> {
-                FingerprintBox(
-                    title = "Biometric scan",
-                    onSuccess = { viewModel.authenticateBiometricSuccess(entryId) },
-                    onError = { msg -> viewModel.setAuthMessage(msg) }
-                )
-            }
-
-            AuthType.FLIP_PATTERN.id -> {
-                FlipPatternBox(
-                    title = "Record flip pattern",
-                    onRecorded = { payload -> viewModel.authenticateFlip(entryId, payload) }
-                )
-            }
-
-            else -> {
-                Text("No authentication UI for type '${e.type}' yet.")
-            }
-        }
-
-        if (authUi.message.isNotBlank()) {
-            Text(
-                authUi.message,
-                color = if (authUi.lastResult == false) MaterialTheme.colorScheme.error
-                else MaterialTheme.colorScheme.primary
+    Scaffold(
+        contentWindowInsets = WindowInsets.safeDrawing,
+        topBar = {
+            TopAppBar(
+                title = { Text("Details") }
             )
         }
+    ) { padding ->
+        if (entry == null) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .padding(16.dp)
+            ) {
+                Text("Loading...")
+            }
+            return@Scaffold
+        }
 
-        Spacer(Modifier.height(12.dp))
+        val e = entry!!
 
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            OutlinedButton(onClick = onBack) { Text("Back") }
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text("Name: ${e.name}", style = MaterialTheme.typography.titleMedium)
+            Text("Type: ${e.type}", style = MaterialTheme.typography.bodyMedium)
 
-            Button(
-                colors = ButtonDefaults.buttonColors(
-                    containerColor = MaterialTheme.colorScheme.error
-                ),
-                onClick = {
-                    viewModel.deleteEntry(entryId)
-                    onDeleted() // go back to list
+            Divider()
+
+            Text("Authenticate", style = MaterialTheme.typography.titleMedium)
+
+            when (e.type) {
+                AuthType.TAP_JINGLE.id -> {
+                    TapInputBox { intervals ->
+                        viewModel.authenticateTap(entryId, intervals)
+                    }
                 }
-            ) { Text("Delete") }
+
+                AuthType.PIN.id -> {
+                    PinInputBox(
+                        label = "Enter PIN",
+                        onDone = { pin -> viewModel.authenticatePin(entryId, pin) }
+                    )
+                }
+
+                AuthType.FINGERPRINT.id -> {
+                    FingerprintBox(
+                        title = "Biometric scan",
+                        onSuccess = { viewModel.authenticateBiometricSuccess(entryId) },
+                        onError = { msg -> viewModel.setAuthMessage(msg) }
+                    )
+                }
+
+                AuthType.FLIP_PATTERN.id -> {
+                    FlipPatternBox(
+                        title = "Record flip pattern",
+                        onRecorded = { payload -> viewModel.authenticateFlip(entryId, payload) }
+                    )
+                }
+
+                else -> {
+                    Text("No authentication UI for type '${e.type}' yet.")
+                }
+            }
+
+            if (authUi.message.isNotBlank()) {
+                Text(
+                    text = authUi.message,
+                    color = if (authUi.lastResult == false) MaterialTheme.colorScheme.error
+                    else MaterialTheme.colorScheme.primary
+                )
+            }
+
+            Spacer(Modifier.height(8.dp))
+
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = onBack) { Text("Back") }
+
+                Button(
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error
+                    ),
+                    onClick = {
+                        viewModel.deleteEntry(entryId)
+                        onDeleted()
+                    }
+                ) {
+                    Text("Delete")
+                }
+            }
         }
     }
 }

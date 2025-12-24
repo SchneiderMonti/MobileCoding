@@ -1,8 +1,19 @@
+@file:OptIn(ExperimentalMaterial3Api::class)
+
+package at.ustp.accessgate.screens
+
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -10,16 +21,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.FragmentActivity
+import at.ustp.accessgate.ui.theme.authMethodAccent
 import at.ustp.accessgate.userinterfaces.AuthType
 import at.ustp.accessgate.userinterfaces.AuthViewModel
 import at.ustp.accessgate.userinterfaces.EnrollmentStep
-import androidx.core.content.ContextCompat
-import android.content.Context
-import android.hardware.Sensor
-import android.hardware.SensorEvent
-import android.hardware.SensorEventListener
-import android.hardware.SensorManager
 import kotlin.math.abs
 
 @Composable
@@ -33,142 +40,173 @@ fun AddAuthWizardScreen(
         viewModel.startEnrollment()
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp)
-    ) {
-        Text("Add Authentication", style = MaterialTheme.typography.headlineSmall)
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text("Add Authentication") }
+            )
+        }
+    ) { padding ->
 
-        when (state.step) {
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(padding)
+                .windowInsetsPadding(WindowInsets.safeDrawing) // ✅ avoids camera cutout + status bar
+                .padding(16.dp)
+                .verticalScroll(rememberScrollState()),
+            verticalArrangement = Arrangement.spacedBy(14.dp)
+        ) {
 
-            EnrollmentStep.ChooseMethod -> {
-                Button(onClick = { viewModel.selectEnrollmentMethod(AuthType.TAP_JINGLE) }) {
-                    Text("Tap Jingle")
+            when (state.step) {
+
+                EnrollmentStep.ChooseMethod -> {
+                    Text("Choose method", style = MaterialTheme.typography.titleMedium)
+
+                    MethodButton(
+                        label = "Tap Jingle",
+                        typeId = AuthType.TAP_JINGLE.id,
+                        onClick = { viewModel.selectEnrollmentMethod(AuthType.TAP_JINGLE) }
+                    )
+
+                    MethodButton(
+                        label = "PIN",
+                        typeId = AuthType.PIN.id,
+                        onClick = { viewModel.selectEnrollmentMethod(AuthType.PIN) }
+                    )
+
+                    MethodButton(
+                        label = "Fingerprint",
+                        typeId = AuthType.FINGERPRINT.id,
+                        onClick = { viewModel.selectEnrollmentMethod(AuthType.FINGERPRINT) }
+                    )
+
+                    MethodButton(
+                        label = "Flip Pattern",
+                        typeId = AuthType.FLIP_PATTERN.id,
+                        onClick = { viewModel.selectEnrollmentMethod(AuthType.FLIP_PATTERN) }
+                    )
                 }
 
-                Button(onClick = { viewModel.selectEnrollmentMethod(AuthType.PIN) }) {
-                    Text("PIN")
-                }
+                EnrollmentStep.DoAuth -> {
+                    Text("Step 1: Do the authentication", style = MaterialTheme.typography.titleMedium)
 
-                Button(onClick = { viewModel.selectEnrollmentMethod(AuthType.FINGERPRINT) }) {
-                    Text("Fingerprint")
-                }
+                    when (state.type) {
+                        AuthType.TAP_JINGLE -> TapInputBox { intervals ->
+                            viewModel.setEnrollmentFirstIntervals(intervals)
+                        }
 
-                Button(onClick = { viewModel.selectEnrollmentMethod(AuthType.FLIP_PATTERN) }) {
-                    Text("Flip Pattern")
-                }
-
-
-            }
-
-            EnrollmentStep.DoAuth -> {
-                Text("Step 1: Do the authentication")
-
-                when (state.type) {
-                    AuthType.TAP_JINGLE -> {
-                        TapInputBox { intervals -> viewModel.setEnrollmentFirstIntervals(intervals) }
-                    }
-
-                    AuthType.PIN -> {
-                        PinInputBox(
+                        AuthType.PIN -> PinInputBox(
                             label = "Enter PIN",
                             onDone = { pin -> viewModel.setEnrollmentFirstPin(pin) }
                         )
-                    }
 
-                    AuthType.FINGERPRINT -> {
-                        FingerprintBox(
+                        AuthType.FINGERPRINT -> FingerprintBox(
                             title = "Use fingerprint (1/2)",
                             onSuccess = { viewModel.setEnrollmentFirstFingerprint() },
-                            onError = { msg -> }
+                            onError = { /* optional: show a message in VM */ }
                         )
-                    }
 
-                    AuthType.FLIP_PATTERN -> {
-                        FlipPatternBox(
+                        AuthType.FLIP_PATTERN -> FlipPatternBox(
                             title = "Do movement pattern (1/2)",
                             onRecorded = { payload -> viewModel.setEnrollmentFirstFlip(payload) }
                         )
-                    }
 
-                    null -> {}
+                        null -> Unit
+                    }
                 }
-            }
 
-            EnrollmentStep.RepeatAuth -> {
-                Text("Step 2: Repeat the authentication")
+                EnrollmentStep.RepeatAuth -> {
+                    Text("Step 2: Repeat the authentication", style = MaterialTheme.typography.titleMedium)
 
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-
-                when (state.type) {
-                    AuthType.TAP_JINGLE -> {
-                        TapInputBox { intervals -> viewModel.setEnrollmentRepeatIntervals(intervals) }
+                    state.error?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
                     }
 
-                    AuthType.PIN -> {
-                        PinInputBox(
+                    when (state.type) {
+                        AuthType.TAP_JINGLE -> TapInputBox { intervals ->
+                            viewModel.setEnrollmentRepeatIntervals(intervals)
+                        }
+
+                        AuthType.PIN -> PinInputBox(
                             label = "Repeat PIN",
                             onDone = { pin -> viewModel.setEnrollmentRepeatPin(pin) }
                         )
-                    }
 
-                    AuthType.FINGERPRINT -> {
-                        FingerprintBox(
+                        AuthType.FINGERPRINT -> FingerprintBox(
                             title = "Use fingerprint (2/2)",
                             onSuccess = { viewModel.setEnrollmentRepeatFingerPrint() },
-                            onError = { msg -> }
+                            onError = { /* optional: show a message in VM */ }
                         )
-                    }
-                    AuthType.FLIP_PATTERN -> {
-                        FlipPatternBox(
+
+                        AuthType.FLIP_PATTERN -> FlipPatternBox(
                             title = "Repeat movement pattern (2/2)",
                             onRecorded = { payload -> viewModel.setEnrollmentRepeatFlip(payload) }
                         )
-                    }
 
-                    null -> {}
-                }
-            }
-
-            EnrollmentStep.Name -> {
-                Text("Step 3: Name it")
-
-                var name by remember { mutableStateOf(state.name) }
-
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it },
-                    label = { Text("Authentication name") },
-                    modifier = Modifier.fillMaxWidth()
-                )
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(
-                        onClick = { viewModel.setEnrollmentName(name) },
-                        enabled = name.isNotBlank()
-                    ) { Text("Next") }
-                }
-            }
-
-            EnrollmentStep.ReviewAndSave -> {
-                Text("Review")
-                Text("Name: ${state.name}")
-                Text("Type: ${state.type?.displayName}")
-
-                state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Button(onClick = {
-                        viewModel.saveEnrollment()
-                        onDone()
-                    }) {
-                        Text("Save")
+                        null -> Unit
                     }
                 }
+
+                EnrollmentStep.Name -> {
+                    Text("Step 3: Name it", style = MaterialTheme.typography.titleMedium)
+
+                    var name by remember(state.name) { mutableStateOf(state.name) }
+
+                    OutlinedTextField(
+                        value = name,
+                        onValueChange = { name = it },
+                        label = { Text("Authentication name") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(
+                            onClick = { viewModel.setEnrollmentName(name) },
+                            enabled = name.isNotBlank()
+                        ) { Text("Next") }
+                    }
+                }
+
+                EnrollmentStep.ReviewAndSave -> {
+                    Text("Review", style = MaterialTheme.typography.titleMedium)
+                    Text("Name: ${state.name}")
+                    Text("Type: ${state.type?.displayName}")
+
+                    state.error?.let {
+                        Text(it, color = MaterialTheme.colorScheme.error)
+                    }
+
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Button(onClick = {
+                            viewModel.saveEnrollment()
+                            onDone()
+                        }) { Text("Save") }
+                    }
+                }
             }
+
+            Spacer(Modifier.height(24.dp))
         }
+    }
+}
+
+@Composable
+private fun MethodButton(
+    label: String,
+    typeId: String,
+    onClick: () -> Unit
+) {
+    // Uses the same accent mapping as the list screen.
+    // Make sure you have authMethodAccent(...) available in scope.
+    val accent = authMethodAccent(typeId)
+
+    Button(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(containerColor = accent)
+    ) {
+        Text(label)
     }
 }
 
@@ -254,7 +292,6 @@ fun FingerprintBox(
                 return@Button
             }
 
-            // ✅ HERE: allow fingerprint + device PIN/pattern/password fallback
             val authenticators =
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or
                         BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -308,7 +345,6 @@ fun FingerprintBox(
                     }
 
                     override fun onAuthenticationFailed() {
-                        // Soft failure – keep prompt open
                         onError("Not recognized. Try again.")
                     }
                 }
@@ -317,7 +353,6 @@ fun FingerprintBox(
             val promptInfo = BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Authenticate")
                 .setSubtitle(title)
-                // ✅ MUST match the same authenticators
                 .setAllowedAuthenticators(authenticators)
                 .build()
 
@@ -329,9 +364,7 @@ fun FingerprintBox(
     }
 }
 
-
-/** Walk up Context wrappers until we find a FragmentActivity */
-private tailrec fun android.content.Context.findFragmentActivity(): FragmentActivity? {
+private tailrec fun Context.findFragmentActivity(): FragmentActivity? {
     return when (this) {
         is FragmentActivity -> this
         is android.content.ContextWrapper -> baseContext.findFragmentActivity()
@@ -339,9 +372,7 @@ private tailrec fun android.content.Context.findFragmentActivity(): FragmentActi
     }
 }
 
-
 private enum class FlipDir { UP, DOWN, LEFT, RIGHT, FACE_UP, FACE_DOWN }
-
 
 @Composable
 fun FlipPatternBox(
@@ -358,13 +389,11 @@ fun FlipPatternBox(
     val flips = remember { mutableStateListOf<FlipDir>() }
     var status by remember { mutableStateOf("Press Start, then flip the phone.") }
 
-    // simple debounce so we don't record the same orientation 100 times
     var lastDir by remember { mutableStateOf<FlipDir?>(null) }
     var lastDirTime by remember { mutableStateOf(0L) }
 
     fun classify(ax: Float, ay: Float, az: Float): FlipDir? {
-        // We detect the dominant axis; tweak thresholds if needed
-        val t = 7.0f // ~0.7g
+        val t = 7.0f
         return when {
             abs(ax) > abs(ay) && abs(ax) > abs(az) && abs(ax) > t ->
                 if (ax > 0) FlipDir.RIGHT else FlipDir.LEFT
@@ -391,11 +420,9 @@ fun FlipPatternBox(
                 val dir = classify(ax, ay, az) ?: return
                 val now = System.currentTimeMillis()
 
-                // debounce + don't repeat same direction back-to-back too quickly
                 if (dir == lastDir && (now - lastDirTime) < 350) return
                 if ((now - lastDirTime) < 250) return
 
-                // record only changes (prevents noise)
                 if (dir != lastDir) {
                     flips.add(dir)
                     lastDir = dir
@@ -409,9 +436,7 @@ fun FlipPatternBox(
 
         sensorManager.registerListener(listener, accel, SensorManager.SENSOR_DELAY_GAME)
 
-        onDispose {
-            sensorManager.unregisterListener(listener)
-        }
+        onDispose { sensorManager.unregisterListener(listener) }
     }
 
     Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
