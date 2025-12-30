@@ -48,6 +48,7 @@ data class EnrollmentUiState(
     val repeatFlipPayload: String = "",
 
     val name: String = "",
+    val hint: String = "",
     val error: String? = null
 )
 
@@ -263,6 +264,10 @@ class AuthViewModel(
         )
     }
 
+    fun setEnrollmentHint(hint: String) {
+        _enrollmentUiState.value = _enrollmentUiState.value.copy(hint = hint.trim())
+    }
+
     fun saveEnrollment() {
         val state = _enrollmentUiState.value
         val type = state.type ?: return
@@ -334,11 +339,13 @@ class AuthViewModel(
             }
 
             val name = state.name.ifBlank { defaultName }
+            val hint = state.hint.trim()
 
             repository.createEntry(
                 name = name,
                 type = type.id,
-                payload = payload
+                payload = payload,
+                hint = hint
             )
 
             _tapAuthUiState.value = TapAuthUiState(message = "Saved '$name' ✅")

@@ -209,6 +209,7 @@ fun AddAuthWizardScreen(
                     Text("Step 3: Name it", style = MaterialTheme.typography.titleMedium)
 
                     var name by remember(state.name) { mutableStateOf(state.name) }
+                    var hint by remember(state.hint) { mutableStateOf(state.hint) }
 
                     OutlinedTextField(
                         value = name,
@@ -217,11 +218,24 @@ fun AddAuthWizardScreen(
                         modifier = Modifier.fillMaxWidth()
                     )
 
+                    OutlinedTextField(
+                        value = hint,
+                        onValueChange = { hint = it },
+                        label = { Text("Hint (optional)") },
+                        supportingText = { Text("Example: “birthday”, “3 knocks then pause”, “flip up-left-down”") },
+                        modifier = Modifier.fillMaxWidth()
+                    )
+
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                         Button(
-                            onClick = { viewModel.setEnrollmentName(name) },
+                            onClick = {
+                                viewModel.setEnrollmentHint(hint)
+                                viewModel.setEnrollmentName(name)
+                            },
                             enabled = name.isNotBlank()
-                        ) { Text("Next") }
+                        ) {
+                            Text("Next")
+                        }
                     }
                 }
 

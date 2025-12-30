@@ -8,13 +8,14 @@ class AuthRepository(private val dao: AuthDao) {
 
     val entries: Flow<List<AuthEntryEntity>> = dao.getAllEntries()
 
-    suspend fun createEntry(name: String, type: String, payload: String): Long {
+    suspend fun createEntry(name: String, type: String, payload: String, hint: String): Long {
         val now = System.currentTimeMillis()
         return dao.insertEntry(
             AuthEntryEntity(
                 name = name,
                 type = type,
                 payload = payload,
+                hint = hint,
                 createdAt = now,
                 updatedAt = now
             )

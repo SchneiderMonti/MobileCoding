@@ -86,6 +86,8 @@ fun AuthGateScreen(
         ) {
             Text("Unlock: ${e.name}", style = MaterialTheme.typography.titleLarge)
             Text("Method: ${e.type}", style = MaterialTheme.typography.bodyMedium)
+            Text("Hint: ${e.hint}", style = MaterialTheme.typography.titleLarge)
+
 
             when (e.type) {
                 AuthType.TAP_JINGLE.id -> {

@@ -9,6 +9,7 @@ data class AuthEntryEntity(
     val name: String,
     val type: String,
     val payload: String,
+    val hint: String,
     val createdAt: Long,
     val updatedAt: Long
 )
