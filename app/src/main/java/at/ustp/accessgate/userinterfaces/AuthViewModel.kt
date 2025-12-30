@@ -540,6 +540,26 @@ class AuthViewModel(
 
 
 
+    fun cancelEnrollment() {
+        startEnrollment() // resets wizard state
+    }
+
+    fun backEnrollmentStep() {
+        val s = _enrollmentUiState.value
+        _enrollmentUiState.value = when (s.step) {
+            EnrollmentStep.ChooseMethod -> s // nothing to go back to inside the wizard
+            EnrollmentStep.DoAuth -> s.copy(step = EnrollmentStep.ChooseMethod, error = null)
+
+            EnrollmentStep.RepeatAuth -> s.copy(step = EnrollmentStep.DoAuth, error = null)
+
+            EnrollmentStep.Name -> s.copy(step = EnrollmentStep.RepeatAuth, error = null)
+
+            EnrollmentStep.ReviewAndSave -> s.copy(step = EnrollmentStep.Name, error = null)
+        }
+    }
+
+
+
 }
 
 

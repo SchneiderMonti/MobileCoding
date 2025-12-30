@@ -37,6 +37,9 @@ fun AuthUI() {
                 viewModel = authViewModel,
                 onDone = {
                     navController.popBackStack("list", inclusive = false)
+                },
+                onCancel = {
+                    navController.popBackStack()
                 }
             )
         }

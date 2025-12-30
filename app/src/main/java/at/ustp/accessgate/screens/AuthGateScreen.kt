@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
+import androidx.compose.material.icons.Icons
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -31,6 +33,9 @@ import at.ustp.accessgate.screens.components.PinInputBox
 import at.ustp.accessgate.screens.components.TapInputBox
 import at.ustp.accessgate.userinterfaces.AuthType
 import at.ustp.accessgate.userinterfaces.AuthViewModel
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.Icon
+
 
 @Composable
 fun AuthGateScreen(
@@ -60,8 +65,21 @@ fun AuthGateScreen(
     }
 
     Scaffold(
+
         contentWindowInsets = WindowInsets.safeDrawing,
-        topBar = { TopAppBar(title = { Text("Authenticate") }) }
+        topBar = {
+            TopAppBar(
+                title = { Text("Authenticate") },
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
+            )
+        }
     ) { padding ->
         if (entry == null) {
             Column(
@@ -130,7 +148,6 @@ fun AuthGateScreen(
             }
 
             Spacer(Modifier.height(8.dp))
-            OutlinedButton(onClick = onBack) { Text("Back") }
         }
     }
 }

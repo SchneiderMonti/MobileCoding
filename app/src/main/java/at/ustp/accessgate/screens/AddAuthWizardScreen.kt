@@ -14,6 +14,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -32,7 +34,8 @@ import kotlin.math.abs
 @Composable
 fun AddAuthWizardScreen(
     viewModel: AuthViewModel,
-    onDone: () -> Unit
+    onDone: () -> Unit,
+    onCancel: () -> Unit
 ) {
     val state by viewModel.enrollmentUiState.collectAsState()
     var showMethodInfo by remember { mutableStateOf(false) }
@@ -88,7 +91,41 @@ fun AddAuthWizardScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Add Authentication") }
+                title = { Text("Add Authentication") },
+                navigationIcon = {
+                    IconButton(
+                        onClick = {
+                            // Close dialog if open
+                            showMethodInfo = false
+                            pendingMethod = null
+
+                            // If we're at the first step, leaving the wizard makes sense
+                            if (state.step == EnrollmentStep.ChooseMethod) {
+                                viewModel.cancelEnrollment()
+                                onCancel()
+                            } else {
+                                viewModel.backEnrollmentStep()
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                actions = {
+                    TextButton(
+                        onClick = {
+                            showMethodInfo = false
+                            pendingMethod = null
+                            viewModel.cancelEnrollment()
+                            onCancel()
+                        }
+                    ) {
+                        Text("Cancel")
+                    }
+                }
             )
         }
     ) { padding ->
@@ -242,6 +279,7 @@ fun AddAuthWizardScreen(
                 EnrollmentStep.ReviewAndSave -> {
                     Text("Review", style = MaterialTheme.typography.titleMedium)
                     Text("Name: ${state.name}")
+                    Text("Hint: ${state.hint}")
                     Text("Type: ${state.type?.displayName}")
 
                     state.error?.let {
