@@ -1,6 +1,7 @@
 package at.ustp.accessgate.screens
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.ui.platform.LocalContext
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.navigation.NavType
@@ -67,8 +68,25 @@ fun AuthUI() {
                 entryId = entryId,
                 viewModel = authViewModel,
                 onBack = { navController.popBackStack() },
-                onDeleted = { navController.popBackStack("list", inclusive = false) }
+                onDeleted = { navController.popBackStack("list", inclusive = false) },
+                onUpdate = { id ->
+                    navController.navigate("edit_auth/$id")
+                }            )
+        }
+
+        composable(
+            "edit_auth/{entryId}",
+            arguments = listOf(navArgument("entryId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val entryId = backStackEntry.arguments?.getLong("entryId") ?: -1L
+            AddAuthWizardScreen(
+                viewModel = authViewModel,
+                onDone = { navController.popBackStack() },
+                onCancel = {navController.popBackStack()}
             )
+            LaunchedEffect(entryId) {
+                authViewModel.startEdit(entryId)
+            }
         }
 
     }

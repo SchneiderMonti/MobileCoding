@@ -19,7 +19,8 @@ fun DetailAuthScreen(
     entryId: Long,
     viewModel: AuthViewModel,
     onBack: () -> Unit,
-    onDeleted: () -> Unit
+    onDeleted: () -> Unit,
+    onUpdate: (Long) -> Unit
 ) {
     val entry by viewModel.observeEntryById(entryId).collectAsState(initial = null)
 
@@ -67,6 +68,7 @@ fun DetailAuthScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             Text("Name: ${e.name}", style = MaterialTheme.typography.titleMedium)
+            Text("Hint: ${e.hint}", style = MaterialTheme.typography.titleMedium)
             Text("Type: ${e.type}", style = MaterialTheme.typography.bodyMedium)
             Text("Created At: ${formatTimestamp(e.createdAt)}", style = MaterialTheme.typography.bodyMedium)
             Text("Updated At: ${formatTimestamp(e.updatedAt)}", style = MaterialTheme.typography.bodyMedium)
@@ -90,6 +92,17 @@ fun DetailAuthScreen(
                         onDeleted()
                     }
                 ) { Text("Delete") }
+
+                Button(
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.primary
+                    ),
+                    onClick = {
+                        viewModel.startEdit(entryId)
+                        viewModel.clearAuthMessage()
+                        onUpdate(entryId) // navigate to wizard
+                    }
+                ) { Text("Update") }
             }
         }
     }

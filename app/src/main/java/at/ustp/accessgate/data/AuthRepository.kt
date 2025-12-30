@@ -39,7 +39,9 @@ class AuthRepository(private val dao: AuthDao) {
     }
 
      */
-
+    suspend fun updateEntry(entity: AuthEntryEntity) {
+        dao.updateEntry(entity)
+    }
     suspend fun deleteEntryById(id: Long) {
         dao.deleteEntryById(id)
     }

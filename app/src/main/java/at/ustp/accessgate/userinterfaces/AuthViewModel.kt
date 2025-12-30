@@ -31,9 +31,15 @@ enum class EnrollmentStep {
     ReviewAndSave
 }
 
+enum class EnrollmentMode {CREATE, EDIT}
+
+
 data class EnrollmentUiState(
     val step: EnrollmentStep = EnrollmentStep.ChooseMethod,
     val type: AuthType? = null,
+
+    val mode: EnrollmentMode = EnrollmentMode.CREATE,
+    val editingEntryId: Long? = null,
 
     val firstIntervals: List<Long> = emptyList(),
     val repeatIntervals: List<Long> = emptyList(),
@@ -51,6 +57,7 @@ data class EnrollmentUiState(
     val hint: String = "",
     val error: String? = null
 )
+
 
 class AuthViewModel(
     private val repository: AuthRepository
@@ -75,6 +82,23 @@ class AuthViewModel(
             type = type,
             step = EnrollmentStep.DoAuth
         )
+    }
+
+    fun startEditEnrollment(entryId: Long) {
+        viewModelScope.launch {
+            val entry = repository.getEntryById(entryId) ?: return@launch
+
+            val type = AuthType.values().firstOrNull { it.id == entry.type } ?: return@launch
+
+            _enrollmentUiState.value = EnrollmentUiState(
+                mode = EnrollmentMode.EDIT,
+                editingEntryId = entryId,
+                type = type,
+                step = EnrollmentStep.DoAuth, // ✅ jump straight to re-enter auth
+                name = entry.name,
+                hint = entry.hint ?: "" // if hint is nullable in DB
+            )
+        }
     }
 
 
@@ -312,7 +336,6 @@ class AuthViewModel(
                 }
 
                 AuthType.FINGERPRINT -> {
-                    // You can’t store “which finger” — only that this entry uses biometrics.
                     if (!state.firstFingerPrint || !state.repeatFingerPrint) {
                         _enrollmentUiState.value = state.copy(
                             error = "Fingerprint enrollment not completed (do it twice).",
@@ -320,8 +343,6 @@ class AuthViewModel(
                         )
                         return@launch
                     }
-
-                    // minimal payload (you can switch to JSON later)
                     "Fingerprint" to "enabled"
                 }
 
@@ -340,15 +361,32 @@ class AuthViewModel(
 
             val name = state.name.ifBlank { defaultName }
             val hint = state.hint.trim()
+            val now = System.currentTimeMillis()
 
-            repository.createEntry(
-                name = name,
-                type = type.id,
-                payload = payload,
-                hint = hint
-            )
+            if (state.mode == EnrollmentMode.EDIT) {
+                val id = state.editingEntryId ?: return@launch
+                val existing = repository.getEntryById(id) ?: return@launch
 
-            _tapAuthUiState.value = TapAuthUiState(message = "Saved '$name' ✅")
+                repository.updateEntry(
+                    existing.copy(
+                        name = name,
+                        hint = hint,
+                        payload = payload,
+                        updatedAt = now
+                    )
+                )
+
+                _tapAuthUiState.value = TapAuthUiState(message = "Updated '$name' ✅")
+            } else {
+                repository.createEntry(
+                    name = name,
+                    type = type.id,
+                    payload = payload,
+                    hint = hint
+                )
+                _tapAuthUiState.value = TapAuthUiState(message = "Saved '$name' ✅")
+            }
+
             startEnrollment()
         }
     }
@@ -559,6 +597,21 @@ class AuthViewModel(
     }
 
 
+
+    fun startEdit(entryId: Long) {
+        viewModelScope.launch {
+            val entry = repository.getEntryById(entryId) ?: return@launch
+
+            _enrollmentUiState.value = EnrollmentUiState(
+                mode = EnrollmentMode.EDIT,
+                editingEntryId = entry.id,
+                type = AuthType.values().firstOrNull { it.id == entry.type },
+                name = entry.name,
+                hint = entry.hint ?: "",   // depending on your entity type
+                step = EnrollmentStep.DoAuth
+            )
+        }
+    }
 
 }
 
