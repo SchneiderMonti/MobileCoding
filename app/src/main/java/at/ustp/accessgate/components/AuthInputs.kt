@@ -8,12 +8,15 @@ import android.hardware.SensorManager
 import androidx.biometric.BiometricManager
 import androidx.biometric.BiometricPrompt
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -35,12 +38,19 @@ fun TapInputBox(
             modifier = Modifier
                 .fillMaxWidth()
                 .height(220.dp)
+                .clip(RoundedCornerShape(16.dp))
                 .background(Color.LightGray)
+                .border(
+                    width = 2.dp,
+                    color = Color(0xFF7C4DFF),
+                    shape = RoundedCornerShape(16.dp)
+                )
                 .clickable { tapTimes.add(System.currentTimeMillis()) },
             contentAlignment = Alignment.Center
         ) {
             Text("Tap here\nTaps recorded: ${tapTimes.size}")
         }
+
 
         Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             Button(onClick = { tapTimes.clear() }) { Text("Reset") }

@@ -7,13 +7,20 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Password
+import androidx.compose.material.icons.filled.Fingerprint
+import androidx.compose.material.icons.filled.TouchApp
+import androidx.compose.material.icons.filled.ScreenRotation
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import at.ustp.accessgate.ui.theme.authMethodAccent
+import at.ustp.accessgate.userinterfaces.AuthType
 import at.ustp.accessgate.userinterfaces.AuthViewModel
+import at.ustp.accessgate.ui.theme.authTypeIcon
 
 @Composable
 fun AuthListScreen(
@@ -37,7 +44,7 @@ fun AuthListScreen(
                 )
             ) {
                 Icon(
-                    imageVector = Icons.Default.Add,
+                    imageVector = Icons.Filled.Add,
                     contentDescription = "Add authentication",
                     modifier = Modifier.size(32.dp)
                 )
@@ -48,10 +55,10 @@ fun AuthListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 12.dp)
         ) {
             Text(
-                text = "Authentication Methods",
+                text = "Your Saved Authentications",
                 style = MaterialTheme.typography.headlineSmall
             )
 
@@ -77,7 +84,16 @@ fun AuthListScreen(
                             },
                             headlineContent = { Text(entry.name) },
                             supportingContent = { Text(entry.type) },
-                            modifier = Modifier.clickable { onEntryClick(entry.id) }
+                            trailingContent = {
+                                Icon(
+                                    imageVector = authTypeIcon(entry.type),
+                                    contentDescription = entry.type,
+                                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            },
+                            modifier = Modifier
+                                .clickable { onEntryClick(entry.id) }
+                                .fillMaxWidth()
                         )
                         HorizontalDivider()
                     }
@@ -86,3 +102,4 @@ fun AuthListScreen(
         }
     }
 }
+
