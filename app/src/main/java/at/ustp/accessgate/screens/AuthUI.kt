@@ -27,7 +27,7 @@ fun AuthUI() {
                 viewModel = authViewModel,
                 onAddAuthClick = { navController.navigate("add_auth_wiz") },
                 onEntryClick = { entryId ->
-                    navController.navigate("detail/$entryId")
+                    navController.navigate("gate/$entryId")   // ✅ changed
                 }
             )
         }
@@ -38,6 +38,20 @@ fun AuthUI() {
                 onDone = {
                     navController.popBackStack("list", inclusive = false)
                 }
+            )
+        }
+
+        composable(
+            "gate/{entryId}",
+            arguments = listOf(navArgument("entryId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val entryId = backStackEntry.arguments?.getLong("entryId") ?: -1L
+
+            AuthGateScreen(
+                entryId = entryId,
+                viewModel = authViewModel,
+                onAuthed = { navController.navigate("detail/$entryId") },
+                onBack = { navController.popBackStack() }
             )
         }
 
