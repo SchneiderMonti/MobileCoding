@@ -31,15 +31,17 @@ enum class EnrollmentStep {
     ReviewAndSave
 }
 
-enum class EnrollmentMode {CREATE, EDIT}
-
+enum class EnrollmentMode {
+    CREATE,
+    EDIT
+}
 
 data class EnrollmentUiState(
-    val step: EnrollmentStep = EnrollmentStep.ChooseMethod,
-    val type: AuthType? = null,
-
     val mode: EnrollmentMode = EnrollmentMode.CREATE,
     val editingEntryId: Long? = null,
+
+    val step: EnrollmentStep = EnrollmentStep.ChooseMethod,
+    val type: AuthType? = null,
 
     val firstIntervals: List<Long> = emptyList(),
     val repeatIntervals: List<Long> = emptyList(),
@@ -55,9 +57,9 @@ data class EnrollmentUiState(
 
     val name: String = "",
     val hint: String = "",
+
     val error: String? = null
 )
-
 
 class AuthViewModel(
     private val repository: AuthRepository
@@ -73,34 +75,82 @@ class AuthViewModel(
     private val _enrollmentUiState = MutableStateFlow(EnrollmentUiState())
     val enrollmentUiState: StateFlow<EnrollmentUiState> = _enrollmentUiState.asStateFlow()
 
+    // ---------------------------------------------------------------------------------------------
+    // Enrollment flow
+    // ---------------------------------------------------------------------------------------------
+
     fun startEnrollment() {
-        _enrollmentUiState.value = EnrollmentUiState()
+        _enrollmentUiState.value = EnrollmentUiState(mode = EnrollmentMode.CREATE)
+    }
+
+    fun startEditEnrollment(entryId: Long) {
+        viewModelScope.launch {
+            val entry = repository.getEntryById(entryId) ?: run {
+                _tapAuthUiState.value = TapAuthUiState(false, "Entry not found")
+                return@launch
+            }
+
+            val type = AuthType.values().firstOrNull { it.id == entry.type } ?: run {
+                _tapAuthUiState.value = TapAuthUiState(false, "Unknown auth type: ${entry.type}")
+                return@launch
+            }
+
+            // We don't prefill secret/pattern values into input UI, but we do prefill name + hint
+            _enrollmentUiState.value = EnrollmentUiState(
+                mode = EnrollmentMode.EDIT,
+                editingEntryId = entryId,
+                type = type,
+                step = EnrollmentStep.DoAuth, // editing: jump directly to re-record / re-enter
+                name = entry.name,
+                hint = entry.hint ?: "",
+                error = null
+            )
+        }
+    }
+
+    fun cancelEnrollment() {
+        // bring wizard back to safe defaults
+        startEnrollment()
+    }
+
+    fun backEnrollmentStep() {
+        val s = _enrollmentUiState.value
+
+        val prev = when (s.step) {
+            EnrollmentStep.ChooseMethod -> EnrollmentStep.ChooseMethod
+            EnrollmentStep.DoAuth -> {
+                if (s.mode == EnrollmentMode.EDIT) EnrollmentStep.DoAuth else EnrollmentStep.ChooseMethod
+            }
+            EnrollmentStep.RepeatAuth -> EnrollmentStep.DoAuth
+            EnrollmentStep.Name -> EnrollmentStep.RepeatAuth
+            EnrollmentStep.ReviewAndSave -> EnrollmentStep.Name
+        }
+
+        _enrollmentUiState.value = s.copy(step = prev, error = null)
     }
 
     fun selectEnrollmentMethod(type: AuthType) {
         _enrollmentUiState.value = EnrollmentUiState(
+            mode = EnrollmentMode.CREATE,
             type = type,
             step = EnrollmentStep.DoAuth
         )
     }
 
-    fun startEditEnrollment(entryId: Long) {
-        viewModelScope.launch {
-            val entry = repository.getEntryById(entryId) ?: return@launch
-
-            val type = AuthType.values().firstOrNull { it.id == entry.type } ?: return@launch
-
-            _enrollmentUiState.value = EnrollmentUiState(
-                mode = EnrollmentMode.EDIT,
-                editingEntryId = entryId,
-                type = type,
-                step = EnrollmentStep.DoAuth, // ✅ jump straight to re-enter auth
-                name = entry.name,
-                hint = entry.hint ?: "" // if hint is nullable in DB
-            )
-        }
+    fun setEnrollmentHint(hint: String) {
+        _enrollmentUiState.value = _enrollmentUiState.value.copy(
+            hint = hint.trim(),
+            error = null
+        )
     }
 
+    fun setEnrollmentName(name: String) {
+        _enrollmentUiState.value = _enrollmentUiState.value.copy(
+            name = name.trim(),
+            error = null,
+            step = EnrollmentStep.ReviewAndSave
+        )
+    }
 
     fun setEnrollmentFirstPin(pin: String) {
         val cleaned = pin.trim()
@@ -185,12 +235,11 @@ class AuthViewModel(
         if (first.isEmpty()) {
             _enrollmentUiState.value = _enrollmentUiState.value.copy(
                 error = "First recording missing. Please start again.",
-                step = EnrollmentStep.ChooseMethod
+                step = EnrollmentStep.DoAuth
             )
             return
         }
 
-        // Must match the first recording reasonably well
         val matches = tapMatches(first, intervals)
         if (!matches) {
             _enrollmentUiState.value = _enrollmentUiState.value.copy(
@@ -229,7 +278,7 @@ class AuthViewModel(
         if (first.isBlank()) {
             _enrollmentUiState.value = _enrollmentUiState.value.copy(
                 error = "First recording missing. Please start again.",
-                step = EnrollmentStep.ChooseMethod
+                step = EnrollmentStep.DoAuth
             )
             return
         }
@@ -264,32 +313,20 @@ class AuthViewModel(
         )
     }
 
-
     fun setEnrollmentRepeatFingerPrint() {
         if (!_enrollmentUiState.value.firstFingerPrint) {
             _enrollmentUiState.value = _enrollmentUiState.value.copy(
                 error = "First Fingerprint step missing! Please start again!",
-                step = EnrollmentStep.ChooseMethod
+                step = EnrollmentStep.DoAuth
             )
             return
         }
+
         _enrollmentUiState.value = _enrollmentUiState.value.copy(
             repeatFingerPrint = true,
             error = null,
             step = EnrollmentStep.Name
         )
-    }
-
-    fun setEnrollmentName(name: String) {
-        _enrollmentUiState.value = _enrollmentUiState.value.copy(
-            name = name.trim(),
-            error = null,
-            step = EnrollmentStep.ReviewAndSave
-        )
-    }
-
-    fun setEnrollmentHint(hint: String) {
-        _enrollmentUiState.value = _enrollmentUiState.value.copy(hint = hint.trim())
     }
 
     fun saveEnrollment() {
@@ -302,9 +339,9 @@ class AuthViewModel(
 
                 AuthType.TAP_JINGLE -> {
                     val intervals = state.firstIntervals
-                    if (intervals.isEmpty()) {
+                    if (intervals.isEmpty() || state.repeatIntervals.isEmpty()) {
                         _enrollmentUiState.value = state.copy(
-                            error = "Nothing to save. Please record your authentication.",
+                            error = "Nothing to save. Please record and repeat your authentication.",
                             step = EnrollmentStep.DoAuth
                         )
                         return@launch
@@ -343,14 +380,15 @@ class AuthViewModel(
                         )
                         return@launch
                     }
+
                     "Fingerprint" to "enabled"
                 }
 
                 AuthType.FLIP_PATTERN -> {
                     val p = state.firstFlipPayload
-                    if (p.isBlank()) {
+                    if (p.isBlank() || state.repeatFlipPayload.isBlank()) {
                         _enrollmentUiState.value = state.copy(
-                            error = "Nothing to save. Please record the movement pattern.",
+                            error = "Nothing to save. Please record and repeat the movement pattern.",
                             step = EnrollmentStep.DoAuth
                         )
                         return@launch
@@ -391,12 +429,11 @@ class AuthViewModel(
         }
     }
 
-    // --- Existing helpers (kept) ---
+    // ---------------------------------------------------------------------------------------------
+    // Entry helpers
+    // ---------------------------------------------------------------------------------------------
 
-
-    fun observeEntryById(id: Long): Flow<AuthEntryEntity?> {
-        return repository.observeEntryById(id)
-    }
+    fun observeEntryById(id: Long): Flow<AuthEntryEntity?> = repository.observeEntryById(id)
 
     fun deleteEntry(entryId: Long) {
         viewModelScope.launch {
@@ -409,10 +446,14 @@ class AuthViewModel(
         _tapAuthUiState.value = TapAuthUiState(lastResult = null, message = "")
     }
 
+    fun setAuthMessage(msg: String) {
+        _tapAuthUiState.value = _tapAuthUiState.value.copy(message = msg)
+    }
 
+    // ---------------------------------------------------------------------------------------------
+    // Authentication helpers (Gate screen)
+    // ---------------------------------------------------------------------------------------------
 
-
-    // --- Core matching logic (kept) ---
     private fun tapMatches(enrolled: List<Long>, attempt: List<Long>): Boolean {
         if (enrolled.size != attempt.size) return false
 
@@ -431,73 +472,6 @@ class AuthViewModel(
             val tol = (expected * relTol).coerceIn(minTolMs, maxTolMs)
             abs(attempt[i] - expected) <= tol
         }
-    }
-
-    // ============================================================================================
-    // AUTHENTICATE AGAINST ENTRY!!!!
-    // ===========================================================================================
-
-    private val _authResult = MutableStateFlow<TapAuthUiState>(TapAuthUiState())
-    val authResult: StateFlow<TapAuthUiState> = _authResult.asStateFlow()
-
-    fun authenticateAgainstEntry(entry: AuthEntryEntity, attemptPayload: String) {
-        viewModelScope.launch {
-            when (entry.type) {
-
-                AuthType.TAP_JINGLE.id -> {
-                    val enrolled = entry.payload.split(",").mapNotNull { it.toLongOrNull() }
-                    val attempt = attemptPayload.split(",").mapNotNull { it.toLongOrNull() }
-
-                    if (enrolled.isEmpty() || attempt.isEmpty()) {
-                        _authResult.value = TapAuthUiState(false, "Missing tap data")
-                        return@launch
-                    }
-
-                    val ok = tapMatches(enrolled, attempt)
-                    _authResult.value = TapAuthUiState(
-                        lastResult = ok,
-                        message = if (ok) "✅ Tap Jingle match" else "❌ Tap Jingle mismatch"
-                    )
-                }
-
-                AuthType.PIN.id -> {
-                    val ok = entry.payload == attemptPayload.trim()
-                    _authResult.value = TapAuthUiState(
-                        lastResult = ok,
-                        message = if (ok) "✅ PIN correct" else "❌ Wrong PIN"
-                    )
-                }
-
-                AuthType.FINGERPRINT.id -> {
-                    // For now: UI triggers BiometricPrompt and calls viewModel.setBiometricResult(...)
-                    _authResult.value = TapAuthUiState(null, "Use biometric prompt in UI")
-                }
-
-                else -> {
-                    _authResult.value = TapAuthUiState(false, "Unknown auth type: ${entry.type}")
-                }
-            }
-        }
-    }
-
-    fun setBiometricResult(success: Boolean, msg: String) {
-        _authResult.value = TapAuthUiState(
-            lastResult = success,
-            message = msg
-        )
-    }
-
-    // --- Detail screen actions ---
-
-    fun deleteEntryById(id: Long) {
-        viewModelScope.launch {
-            repository.deleteEntryById(id)   // <-- make sure this exists in repo/dao
-        }
-    }
-
-    /** Optional helper to just show errors from UI callbacks */
-    fun setAuthMessage(msg: String) {
-        _tapAuthUiState.value = _tapAuthUiState.value.copy(message = msg)
     }
 
     fun authenticateTap(entryId: Long, attemptIntervals: List<Long>) {
@@ -564,56 +538,10 @@ class AuthViewModel(
         }
     }
 
-    /**
-     * IMPORTANT LIMITATION:
-     * Android biometric auth only tells you “user authenticated”, not WHICH finger/face.
-     * So this can only be “success if the system says success”.
-     */
     fun authenticateBiometricSuccess(entryId: Long) {
         _tapAuthUiState.value = TapAuthUiState(
             lastResult = true,
             message = "✅ Biometric authentication success"
         )
     }
-
-
-
-    fun cancelEnrollment() {
-        startEnrollment() // resets wizard state
-    }
-
-    fun backEnrollmentStep() {
-        val s = _enrollmentUiState.value
-        _enrollmentUiState.value = when (s.step) {
-            EnrollmentStep.ChooseMethod -> s // nothing to go back to inside the wizard
-            EnrollmentStep.DoAuth -> s.copy(step = EnrollmentStep.ChooseMethod, error = null)
-
-            EnrollmentStep.RepeatAuth -> s.copy(step = EnrollmentStep.DoAuth, error = null)
-
-            EnrollmentStep.Name -> s.copy(step = EnrollmentStep.RepeatAuth, error = null)
-
-            EnrollmentStep.ReviewAndSave -> s.copy(step = EnrollmentStep.Name, error = null)
-        }
-    }
-
-
-
-    fun startEdit(entryId: Long) {
-        viewModelScope.launch {
-            val entry = repository.getEntryById(entryId) ?: return@launch
-
-            _enrollmentUiState.value = EnrollmentUiState(
-                mode = EnrollmentMode.EDIT,
-                editingEntryId = entry.id,
-                type = AuthType.values().firstOrNull { it.id == entry.type },
-                name = entry.name,
-                hint = entry.hint ?: "",   // depending on your entity type
-                step = EnrollmentStep.DoAuth
-            )
-        }
-    }
-
 }
-
-
-

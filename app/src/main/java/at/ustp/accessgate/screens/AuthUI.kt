@@ -85,7 +85,7 @@ fun AuthUI() {
                 onCancel = {navController.popBackStack()}
             )
             LaunchedEffect(entryId) {
-                authViewModel.startEdit(entryId)
+                authViewModel.startEditEnrollment(entryId)
             }
         }
 

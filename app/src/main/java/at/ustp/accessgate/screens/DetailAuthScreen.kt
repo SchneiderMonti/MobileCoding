@@ -98,7 +98,7 @@ fun DetailAuthScreen(
                         containerColor = MaterialTheme.colorScheme.primary
                     ),
                     onClick = {
-                        viewModel.startEdit(entryId)
+                        viewModel.startEditEnrollment(entryId)
                         viewModel.clearAuthMessage()
                         onUpdate(entryId) // navigate to wizard
                     }

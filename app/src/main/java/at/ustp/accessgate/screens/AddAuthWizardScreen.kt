@@ -47,6 +47,7 @@ import at.ustp.accessgate.ui.theme.authMethodAccent
 import at.ustp.accessgate.ui.theme.authTypeIcon
 import at.ustp.accessgate.userinterfaces.AuthType
 import at.ustp.accessgate.userinterfaces.AuthViewModel
+import at.ustp.accessgate.userinterfaces.EnrollmentMode
 import at.ustp.accessgate.userinterfaces.EnrollmentStep
 
 @Composable
@@ -56,12 +57,22 @@ fun AddAuthWizardScreen(
     onCancel: () -> Unit
 ) {
     val state by viewModel.enrollmentUiState.collectAsState()
-
     var showMethodInfo by remember { mutableStateOf(false) }
     var pendingMethod by remember { mutableStateOf<AuthType?>(null) }
 
+    // Only auto-start if we're truly in a fresh CREATE session.
+    // This avoids wiping EDIT state when you navigate in from "Update".
     LaunchedEffect(Unit) {
-        viewModel.startEnrollment()
+        val looksFreshCreate =
+            state.mode == EnrollmentMode.CREATE &&
+                    state.step == EnrollmentStep.ChooseMethod &&
+                    state.type == null &&
+                    state.name.isBlank() &&
+                    state.hint.isBlank()
+
+        if (looksFreshCreate) {
+            viewModel.startEnrollment()
+        }
     }
 
     // --- Method info dialog ---
@@ -80,9 +91,9 @@ fun AddAuthWizardScreen(
                         AuthType.TAP_JINGLE ->
                             "Tap a rhythm twice. We store the timing intervals and later compare your attempts."
                         AuthType.PIN ->
-                            "Enter a PIN twice. We store the PIN (for MVP). Later you authenticate by entering it again."
+                            "Enter a PIN twice. We store the PIN (proof of concept). Later you authenticate by entering it again."
                         AuthType.FINGERPRINT ->
-                            "Uses Android’s biometric prompt. Note: Android does not reveal which finger—only success/fail."
+                            "Uses Android’s biometric prompt. Android does not reveal which finger—only success/fail."
                         AuthType.FLIP_PATTERN ->
                             "Flip the phone in a short pattern twice. We store the direction sequence."
                     }
@@ -112,14 +123,20 @@ fun AddAuthWizardScreen(
         contentWindowInsets = WindowInsets.safeDrawing,
         topBar = {
             TopAppBar(
-                title = { Text("Add Authentication") },
+                title = {
+                    Text(
+                        if (state.mode == EnrollmentMode.EDIT) "Update Authentication"
+                        else "Add Authentication"
+                    )
+                },
                 navigationIcon = {
                     IconButton(
                         onClick = {
+                            // close method dialog if open
                             showMethodInfo = false
                             pendingMethod = null
 
-                            if (state.step == EnrollmentStep.ChooseMethod) {
+                            if (state.step == EnrollmentStep.ChooseMethod && state.mode == EnrollmentMode.CREATE) {
                                 viewModel.cancelEnrollment()
                                 onCancel()
                             } else {
@@ -157,6 +174,7 @@ fun AddAuthWizardScreen(
         ) {
 
             when (state.step) {
+
                 EnrollmentStep.ChooseMethod -> {
                     Text("Choose method", style = MaterialTheme.typography.titleMedium)
 
@@ -198,38 +216,34 @@ fun AddAuthWizardScreen(
                 }
 
                 EnrollmentStep.DoAuth -> {
-                    Text("Step 1: Do the authentication", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        if (state.mode == EnrollmentMode.EDIT) "Step 1: Re-enter authentication"
+                        else "Step 1: Do the authentication",
+                        style = MaterialTheme.typography.titleMedium
+                    )
+
+                    state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
                     when (state.type) {
-                        AuthType.TAP_JINGLE -> {
-                            Spacer(Modifier.height(12.dp))
-                            TapInputBox { intervals -> viewModel.setEnrollmentFirstIntervals(intervals) }
+                        AuthType.TAP_JINGLE -> TapInputBox { intervals ->
+                            viewModel.setEnrollmentFirstIntervals(intervals)
                         }
 
-                        AuthType.PIN -> {
-                            Spacer(Modifier.height(12.dp))
-                            PinInputBox(
-                                label = "Enter PIN",
-                                onDone = { pin -> viewModel.setEnrollmentFirstPin(pin) }
-                            )
-                        }
+                        AuthType.PIN -> PinInputBox(
+                            label = "Enter PIN",
+                            onDone = { pin -> viewModel.setEnrollmentFirstPin(pin) }
+                        )
 
-                        AuthType.FINGERPRINT -> {
-                            Spacer(Modifier.height(12.dp))
-                            FingerprintBox(
-                                title = "Use fingerprint (1/2)",
-                                onSuccess = { viewModel.setEnrollmentFirstFingerprint() },
-                                onError = { /* optional */ }
-                            )
-                        }
+                        AuthType.FINGERPRINT -> FingerprintBox(
+                            title = "Use fingerprint (1/2)",
+                            onSuccess = { viewModel.setEnrollmentFirstFingerprint() },
+                            onError = { msg -> viewModel.setAuthMessage(msg) }
+                        )
 
-                        AuthType.FLIP_PATTERN -> {
-                            Spacer(Modifier.height(12.dp))
-                            FlipPatternBox(
-                                title = "Do movement pattern (1/2)",
-                                onRecorded = { payload -> viewModel.setEnrollmentFirstFlip(payload) }
-                            )
-                        }
+                        AuthType.FLIP_PATTERN -> FlipPatternBox(
+                            title = "Do movement pattern (1/2)",
+                            onRecorded = { payload -> viewModel.setEnrollmentFirstFlip(payload) }
+                        )
 
                         null -> Unit
                     }
@@ -241,35 +255,25 @@ fun AddAuthWizardScreen(
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
                     when (state.type) {
-                        AuthType.TAP_JINGLE -> {
-                            Spacer(Modifier.height(12.dp))
-                            TapInputBox { intervals -> viewModel.setEnrollmentRepeatIntervals(intervals) }
+                        AuthType.TAP_JINGLE -> TapInputBox { intervals ->
+                            viewModel.setEnrollmentRepeatIntervals(intervals)
                         }
 
-                        AuthType.PIN -> {
-                            Spacer(Modifier.height(12.dp))
-                            PinInputBox(
-                                label = "Repeat PIN",
-                                onDone = { pin -> viewModel.setEnrollmentRepeatPin(pin) }
-                            )
-                        }
+                        AuthType.PIN -> PinInputBox(
+                            label = "Repeat PIN",
+                            onDone = { pin -> viewModel.setEnrollmentRepeatPin(pin) }
+                        )
 
-                        AuthType.FINGERPRINT -> {
-                            Spacer(Modifier.height(12.dp))
-                            FingerprintBox(
-                                title = "Use fingerprint (2/2)",
-                                onSuccess = { viewModel.setEnrollmentRepeatFingerPrint() },
-                                onError = { /* optional */ }
-                            )
-                        }
+                        AuthType.FINGERPRINT -> FingerprintBox(
+                            title = "Use fingerprint (2/2)",
+                            onSuccess = { viewModel.setEnrollmentRepeatFingerPrint() },
+                            onError = { msg -> viewModel.setAuthMessage(msg) }
+                        )
 
-                        AuthType.FLIP_PATTERN -> {
-                            Spacer(Modifier.height(12.dp))
-                            FlipPatternBox(
-                                title = "Repeat movement pattern (2/2)",
-                                onRecorded = { payload -> viewModel.setEnrollmentRepeatFlip(payload) }
-                            )
-                        }
+                        AuthType.FLIP_PATTERN -> FlipPatternBox(
+                            title = "Repeat movement pattern (2/2)",
+                            onRecorded = { payload -> viewModel.setEnrollmentRepeatFlip(payload) }
+                        )
 
                         null -> Unit
                     }
@@ -292,7 +296,9 @@ fun AddAuthWizardScreen(
                         value = hint,
                         onValueChange = { hint = it },
                         label = { Text("Hint (optional)") },
-                        supportingText = { Text("Example: “birthday”, “3 knocks then pause”, “flip up-left-down”") },
+                        supportingText = {
+                            Text("Example: “birthday”, “3 knocks then pause”, “flip up-left-down”")
+                        },
                         modifier = Modifier.fillMaxSize()
                     )
 
@@ -310,16 +316,20 @@ fun AddAuthWizardScreen(
                 EnrollmentStep.ReviewAndSave -> {
                     Text("Review", style = MaterialTheme.typography.titleMedium)
                     Text("Name: ${state.name}")
-                    Text("Hint: ${state.hint}")
+                    if (state.hint.isNotBlank()) Text("Hint: ${state.hint}")
                     Text("Type: ${state.type?.displayName}")
 
                     state.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
 
                     Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Button(onClick = {
-                            viewModel.saveEnrollment()
-                            onDone()
-                        }) { Text("Save") }
+                        Button(
+                            onClick = {
+                                viewModel.saveEnrollment()
+                                onDone()
+                            }
+                        ) {
+                            Text(if (state.mode == EnrollmentMode.EDIT) "Update" else "Save")
+                        }
                     }
                 }
             }
