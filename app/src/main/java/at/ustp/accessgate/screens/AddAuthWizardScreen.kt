@@ -60,8 +60,7 @@ fun AddAuthWizardScreen(
     var showMethodInfo by remember { mutableStateOf(false) }
     var pendingMethod by remember { mutableStateOf<AuthType?>(null) }
 
-    // Only auto-start if we're truly in a fresh CREATE session.
-    // This avoids wiping EDIT state when you navigate in from "Update".
+
     LaunchedEffect(Unit) {
         val looksFreshCreate =
             state.mode == EnrollmentMode.CREATE &&
@@ -75,7 +74,6 @@ fun AddAuthWizardScreen(
         }
     }
 
-    // --- Method info dialog ---
     if (showMethodInfo && pendingMethod != null) {
         val method = pendingMethod!!
 
@@ -132,7 +130,6 @@ fun AddAuthWizardScreen(
                 navigationIcon = {
                     IconButton(
                         onClick = {
-                            // close method dialog if open
                             showMethodInfo = false
                             pendingMethod = null
 
