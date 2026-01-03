@@ -54,16 +54,13 @@ fun AuthGateScreen(
     val entry by viewModel.observeEntryById(entryId).collectAsState(initial = null)
     val authUi by viewModel.tapAuthUiState.collectAsState()
 
-    // prevent double-navigation on recomposition
     var navigated by remember(entryId) { mutableStateOf(false) }
 
-    // clear old messages when entering this gate
     LaunchedEffect(entryId) {
         navigated = false
         viewModel.setAuthMessage("")
     }
 
-    // auto-navigate when success happens
     LaunchedEffect(authUi.lastResult, navigated) {
         if (!navigated && authUi.lastResult == true) {
             navigated = true
@@ -128,7 +125,6 @@ fun AuthGateScreen(
                 Text("Hint: ${e.hint}", style = MaterialTheme.typography.bodyMedium)
             }
 
-            //Text("Method: ${e.type}", style = MaterialTheme.typography.bodyMedium)
 
             when (e.type) {
 

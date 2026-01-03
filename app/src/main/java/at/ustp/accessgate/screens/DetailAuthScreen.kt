@@ -24,7 +24,6 @@ fun DetailAuthScreen(
 ) {
     val entry by viewModel.observeEntryById(entryId).collectAsState(initial = null)
 
-    // ✅ Clear any old messages when opening details (optional but good)
     LaunchedEffect(entryId) {
         viewModel.clearAuthMessage()
     }
@@ -75,7 +74,6 @@ fun DetailAuthScreen(
 
             Divider()
 
-            // (Optional) Hide payload for security later — but keeping for dev:
             Text("Payload: ${e.payload}", style = MaterialTheme.typography.bodyMedium)
 
             Spacer(Modifier.height(8.dp))
@@ -100,7 +98,7 @@ fun DetailAuthScreen(
                     onClick = {
                         viewModel.startEditEnrollment(entryId)
                         viewModel.clearAuthMessage()
-                        onUpdate(entryId) // navigate to wizard
+                        onUpdate(entryId)
                     }
                 ) { Text("Update") }
             }

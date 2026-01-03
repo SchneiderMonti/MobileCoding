@@ -28,7 +28,7 @@ fun AuthUI() {
                 viewModel = authViewModel,
                 onAddAuthClick = { navController.navigate("add_auth_wiz") },
                 onEntryClick = { entryId ->
-                    navController.navigate("gate/$entryId")   // ✅ changed
+                    navController.navigate("gate/$entryId")
                 }
             )
         }

@@ -113,7 +113,6 @@ fun FingerprintBox(
                 return@Button
             }
 
-            // ✅ HERE: allow fingerprint + device PIN/pattern/password fallback
             val authenticators =
                 BiometricManager.Authenticators.BIOMETRIC_STRONG or
                         BiometricManager.Authenticators.DEVICE_CREDENTIAL
@@ -167,7 +166,6 @@ fun FingerprintBox(
                     }
 
                     override fun onAuthenticationFailed() {
-                        // Soft failure – keep prompt open
                         onError("Not recognized. Try again.")
                     }
                 }
@@ -176,7 +174,6 @@ fun FingerprintBox(
             val promptInfo = BiometricPrompt.PromptInfo.Builder()
                 .setTitle("Authenticate")
                 .setSubtitle(title)
-                // ✅ MUST match the same authenticators
                 .setAllowedAuthenticators(authenticators)
                 .build()
 
@@ -217,13 +214,11 @@ fun FlipPatternBox(
     val flips = remember { mutableStateListOf<FlipDir>() }
     var status by remember { mutableStateOf("Press Start, then flip the phone.") }
 
-    // simple debounce so we don't record the same orientation 100 times
     var lastDir by remember { mutableStateOf<FlipDir?>(null) }
     var lastDirTime by remember { mutableStateOf(0L) }
 
     fun classify(ax: Float, ay: Float, az: Float): FlipDir? {
-        // We detect the dominant axis; tweak thresholds if needed
-        val t = 7.0f // ~0.7g
+        val t = 7.0f
         return when {
             abs(ax) > abs(ay) && abs(ax) > abs(az) && abs(ax) > t ->
                 if (ax > 0) FlipDir.RIGHT else FlipDir.LEFT
@@ -250,11 +245,9 @@ fun FlipPatternBox(
                 val dir = classify(ax, ay, az) ?: return
                 val now = System.currentTimeMillis()
 
-                // debounce + don't repeat same direction back-to-back too quickly
                 if (dir == lastDir && (now - lastDirTime) < 350) return
                 if ((now - lastDirTime) < 250) return
 
-                // record only changes (prevents noise)
                 if (dir != lastDir) {
                     flips.add(dir)
                     lastDir = dir

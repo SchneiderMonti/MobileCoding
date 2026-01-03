@@ -95,12 +95,11 @@ class AuthViewModel(
                 return@launch
             }
 
-            // We don't prefill secret/pattern values into input UI, but we do prefill name + hint
             _enrollmentUiState.value = EnrollmentUiState(
                 mode = EnrollmentMode.EDIT,
                 editingEntryId = entryId,
                 type = type,
-                step = EnrollmentStep.DoAuth, // editing: jump directly to re-record / re-enter
+                step = EnrollmentStep.DoAuth,
                 name = entry.name,
                 hint = entry.hint ?: "",
                 error = null
@@ -109,7 +108,8 @@ class AuthViewModel(
     }
 
     fun cancelEnrollment() {
-        // bring wizard back to safe defaults
+
+
         startEnrollment()
     }
 
