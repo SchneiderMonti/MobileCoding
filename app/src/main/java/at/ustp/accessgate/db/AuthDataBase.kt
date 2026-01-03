@@ -24,7 +24,6 @@ abstract class AuthDatabase : RoomDatabase() {
                     AuthDatabase::class.java,
                     "auth_db"
                 )
-                    .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance
                 instance
