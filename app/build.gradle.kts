@@ -45,7 +45,9 @@ dependencies {
     implementation(libs.androidx.compose.foundation)
     implementation(libs.androidx.fragment.ktx)
     implementation(libs.androidx.biometric.ktx)
-    implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    //implementation("androidx.biometric:biometric:1.2.0-alpha05")
+    implementation("androidx.biometric:biometric:1.1.0")
+    implementation("androidx.biometric:biometric-ktx:1.4.0-alpha02")
     // room setup
     val room_version = "2.8.4"
     implementation("androidx.room:room-ktx:$room_version")
